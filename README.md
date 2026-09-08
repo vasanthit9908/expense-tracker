@@ -60,3 +60,13 @@ Use the dashboard period preset **Current month** while the system date is in Se
 ## Money
 
 Amounts are stored as integer minor units (paise/cents). Calculations use `decimal.js` and round half-up per line so organisation employee cost always equals allocated + unallocated.
+
+## Schema diagram (DBML)
+
+The ER diagram source lives at [`src/db/schema.dbml`](src/db/schema.dbml). Paste it into [dbdiagram.io](https://dbdiagram.io) to view relationships.
+
+When you change the database schema, update **all** of these together:
+
+1. [`src/db/schema.ts`](src/db/schema.ts) — Drizzle ORM
+2. [`src/db/sql.ts`](src/db/sql.ts) — SQLite DDL / init
+3. [`src/db/schema.dbml`](src/db/schema.dbml) — dbdiagram.io diagram

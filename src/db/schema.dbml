@@ -1,0 +1,162 @@
+// Organisation P&L — database schema for dbdiagram.io
+// Keep this file in sync with:
+//   - src/db/schema.ts  (Drizzle ORM)
+//   - src/db/sql.ts     (INIT_SQL / SQLite DDL)
+// Open at: https://dbdiagram.io
+
+Project org_pnl {
+  database_type: 'SQLite'
+  Note: 'Local SQLite schema for organisation / branch / project P&L. Monetary amounts are stored as integer minor units (paise/cents). Percentages are stored as integer basis points (e.g. 5050 = 50.50%). Dates are ISO YYYY-MM-DD text.'
+}
+
+Table organisations {
+  id integer [pk, increment, note: 'Primary key']
+  name text [not null]
+  currency text [not null, note: 'ISO 4217 three-letter code; default INR for new orgs']
+  created_at text [not null, default: `datetime('now')`]
+  updated_at text [not null, default: `datetime('now')`]
+
+  Note: 'One base/reporting currency per organisation. No FX in V1.'
+}
+
+Table branches {
+  id integer [pk, increment]
+  organisation_id integer [not null]
+  name text [not null]
+  location text [not null]
+  created_at text [not null, default: `datetime('now')`]
+  updated_at text [not null, default: `datetime('now')`]
+
+  indexes {
+    organisation_id [name: 'idx_branches_organisation_id']
+  }
+
+  Note: 'Organisation 1 -> many Branches. Branch cannot exist without an organisation.'
+}
+
+Table projects {
+  id integer [pk, increment]
+  branch_id integer [not null]
+  name text [not null]
+  billable integer [not null, note: 'Boolean: 1 = billable, 0 = non-billable']
+  start_date text [not null, note: 'ISO date YYYY-MM-DD']
+  end_date text [note: 'Nullable; must not be before start_date']
+  created_at text [not null, default: `datetime('now')`]
+  updated_at text [not null, default: `datetime('now')`]
+
+  indexes {
+    branch_id [name: 'idx_projects_branch_id']
+  }
+
+  Note: 'Project belongs to a branch. Non-billable projects still contribute costs to P&L.'
+}
+
+Table employees {
+  id integer [pk, increment]
+  organisation_id integer [not null]
+  name text [not null]
+  ctc integer [not null, note: 'Annual CTC in minor units (paise/cents)']
+  created_at text [not null, default: `datetime('now')`]
+  updated_at text [not null, default: `datetime('now')`]
+
+  indexes {
+    organisation_id [name: 'idx_employees_organisation_id']
+  }
+
+  Note: 'Employee belongs to an organisation. V1 has no hire/leave dates.'
+}
+
+Table project_employees {
+  id integer [pk, increment]
+  project_id integer [not null]
+  employee_id integer [not null]
+  allocation_percentage integer [not null, note: 'Stored as percent * 100 (e.g. 5050 = 50.50%). Must be > 0 and <= 100.']
+  effective_from text [not null, note: 'ISO date YYYY-MM-DD']
+  effective_to text [note: 'Nullable open-ended; must not be before effective_from']
+  created_at text [not null, default: `datetime('now')`]
+  updated_at text [not null, default: `datetime('now')`]
+
+  indexes {
+    project_id [name: 'idx_project_employees_project_id']
+    employee_id [name: 'idx_project_employees_employee_id']
+    effective_from [name: 'idx_project_employees_effective_from']
+    effective_to [name: 'idx_project_employees_effective_to']
+  }
+
+  Note: 'Employee project allocation history. Allocation changes insert new rows; do not overwrite history. Overlapping periods for the same employee must not exceed 100% total allocation.'
+}
+
+Table expenses {
+  id integer [pk, increment]
+  organisation_id integer [not null]
+  branch_id integer [note: 'Null = organisation-level expense (when no project allocations). Set = branch-level expense.']
+  name text [not null]
+  amount integer [not null, note: 'Amount in minor units']
+  expense_date text [not null, note: 'ISO date YYYY-MM-DD']
+  created_at text [not null, default: `datetime('now')`]
+  updated_at text [not null, default: `datetime('now')`]
+
+  indexes {
+    organisation_id [name: 'idx_expenses_organisation_id']
+    branch_id [name: 'idx_expenses_branch_id']
+    expense_date [name: 'idx_expenses_expense_date']
+  }
+
+  Note: 'No project_id on expenses. Scopes: organisation (branch_id null, no allocations), branch (branch_id set, no allocations), projects (branch_id null, allocations summing to 100%).'
+}
+
+Table expense_allocations {
+  id integer [pk, increment]
+  expense_id integer [not null]
+  project_id integer [not null]
+  allocation_percentage integer [not null, note: 'Stored as percent * 100. Sum across an expense must equal 100%.']
+  allocated_amount integer [not null, note: 'Server-computed minor units; users must not override. Sum must equal expense.amount.']
+  created_at text [not null, default: `datetime('now')`]
+  updated_at text [not null, default: `datetime('now')`]
+
+  indexes {
+    expense_id [name: 'idx_expense_allocations_expense_id']
+    project_id [name: 'idx_expense_allocations_project_id']
+  }
+
+  Note: 'One expense can be split across multiple projects. Project must belong to the same organisation as the expense. ON DELETE CASCADE from expenses.'
+}
+
+Table invoices {
+  id integer [pk, increment]
+  invoice_number text [not null]
+  organisation_id integer [not null]
+  branch_id integer [note: 'Null for organisation-level invoice']
+  project_id integer [note: 'Requires branch_id; project must belong to that branch']
+  description text [not null]
+  amount integer [not null, note: 'Amount in minor units']
+  invoice_date text [not null, note: 'ISO date; revenue recognition date for V1']
+  due_date text [note: 'Nullable ISO date']
+  status text [not null, note: 'DRAFT | ISSUED | PAID | PARTIALLY_PAID | OVERDUE | CANCELLED']
+  created_at text [not null, default: `datetime('now')`]
+  updated_at text [not null, default: `datetime('now')`]
+
+  indexes {
+    (organisation_id, invoice_number) [unique, name: 'idx_invoices_org_number']
+    organisation_id [name: 'idx_invoices_organisation_id']
+    branch_id [name: 'idx_invoices_branch_id']
+    project_id [name: 'idx_invoices_project_id']
+    invoice_date [name: 'idx_invoices_invoice_date']
+    status [name: 'idx_invoices_status']
+  }
+
+  Note: 'Hierarchy: org invoice (branch/project null), branch invoice (branch set, project null), project invoice (branch + project set). CANCELLED invoices do not count as revenue.'
+}
+
+Ref: branches.organisation_id > organisations.id [delete: restrict]
+Ref: projects.branch_id > branches.id [delete: restrict]
+Ref: employees.organisation_id > organisations.id [delete: restrict]
+Ref: project_employees.project_id > projects.id [delete: restrict]
+Ref: project_employees.employee_id > employees.id [delete: restrict]
+Ref: expenses.organisation_id > organisations.id [delete: restrict]
+Ref: expenses.branch_id > branches.id [delete: restrict]
+Ref: expense_allocations.expense_id > expenses.id [delete: cascade]
+Ref: expense_allocations.project_id > projects.id [delete: restrict]
+Ref: invoices.organisation_id > organisations.id [delete: restrict]
+Ref: invoices.branch_id > branches.id [delete: restrict]
+Ref: invoices.project_id > projects.id [delete: restrict]
