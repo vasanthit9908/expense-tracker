@@ -19,7 +19,7 @@ export default async function OrganisationsPage({
     <div>
       <PageHeader
         title="Organisations"
-        description="Each organisation has one reporting currency. V1 does not convert currencies."
+        description="Each organisation has one reporting (base) currency. Expenses can be paid in another currency and are booked into the base currency for P&L."
         actionHref="/organisations/new"
         actionLabel="New organisation"
       />

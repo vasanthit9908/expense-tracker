@@ -103,6 +103,9 @@ export const expenses = sqliteTable(
       onDelete: "restrict",
     }),
     name: text("name").notNull(),
+    currency: text("currency").notNull(),
+    originalAmount: integer("original_amount").notNull(),
+    exchangeRate: text("exchange_rate").notNull(),
     amount: integer("amount").notNull(),
     expenseDate: text("expense_date").notNull(),
     ...timestamps,
@@ -111,6 +114,7 @@ export const expenses = sqliteTable(
     index("idx_expenses_organisation_id").on(table.organisationId),
     index("idx_expenses_branch_id").on(table.branchId),
     index("idx_expenses_expense_date").on(table.expenseDate),
+    index("idx_expenses_currency").on(table.currency),
   ],
 );
 

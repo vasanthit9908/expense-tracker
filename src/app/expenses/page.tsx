@@ -18,6 +18,7 @@ export default async function ExpensesPage({
   const { q } = await searchParams;
   const orgId = await getSelectedOrganisationId();
   const organisation = orgId ? await getOrganisation(orgId) : undefined;
+  const baseCurrency = organisation?.currency ?? "USD";
   const expenses = (await listExpenses(orgId ?? undefined)).filter((expense) =>
     q ? expense.name.toLowerCase().includes(q.toLowerCase()) : true,
   );
@@ -31,7 +32,7 @@ export default async function ExpensesPage({
     <div>
       <PageHeader
         title="Expenses"
-        description="Organisation, branch, or split across projects. Project splits must equal 100%."
+        description="Enter the paid currency and amount. Foreign-currency expenses are booked into the organisation currency using the exchange rate you provide. P&L always uses the booked amount."
         actionHref="/expenses/new"
         actionLabel="New expense"
       />
@@ -44,8 +45,9 @@ export default async function ExpensesPage({
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Scope</TableHead>
+              <TableHead>Paid</TableHead>
+              <TableHead>Booked ({baseCurrency})</TableHead>
               <TableHead>Date</TableHead>
-              <TableHead>Amount</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
@@ -56,10 +58,20 @@ export default async function ExpensesPage({
                 <TableCell>
                   <Badge variant="secondary">{scope}</Badge>
                 </TableCell>
-                <TableCell>{expense.expenseDate}</TableCell>
                 <TableCell>
-                  <MoneyText minor={expense.amount} currency={organisation?.currency ?? "INR"} />
+                  <div className="flex flex-col gap-0.5">
+                    <MoneyText minor={expense.originalAmount} currency={expense.currency} />
+                    {expense.currency !== baseCurrency ? (
+                      <span className="text-xs text-muted-foreground">
+                        @ {expense.exchangeRate} → {baseCurrency}
+                      </span>
+                    ) : null}
+                  </div>
                 </TableCell>
+                <TableCell>
+                  <MoneyText minor={expense.amount} currency={baseCurrency} />
+                </TableCell>
+                <TableCell>{expense.expenseDate}</TableCell>
                 <TableCell className="text-right">
                   <Link href={`/expenses/${expense.id}`} className={cn(buttonVariants({ variant: "outline" }))}>
                     Edit

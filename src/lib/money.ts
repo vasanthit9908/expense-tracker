@@ -95,3 +95,65 @@ export function assertPercentSum100(percentages: Decimal[]): void {
     throw new MoneyError(`Allocation percentages must equal 100% (got ${sum.toString()}%)`);
   }
 }
+
+/** Parse a positive exchange rate (base currency units per 1 transaction-currency unit). */
+export function parseExchangeRate(rate: string | number | Decimal): Decimal {
+  const value = new Decimal(rate);
+  if (!value.isFinite() || value.lte(0)) {
+    throw new MoneyError("Exchange rate must be a positive number");
+  }
+  return value;
+}
+
+/**
+ * Book an expense into the organisation base currency.
+ * `exchangeRate` = units of base currency per 1 unit of transaction currency.
+ * Example: INR → USD at 0.012 means ₹1,000 books as $12.
+ */
+export function bookToBaseCurrency(
+  originalMinor: MinorUnits,
+  exchangeRate: string | number | Decimal,
+): MinorUnits {
+  const rate = parseExchangeRate(exchangeRate);
+  return roundToMinor(new Decimal(originalMinor.toString()).mul(rate));
+}
+
+export function normalizeExpenseFx(input: {
+  transactionCurrency: string;
+  baseCurrency: string;
+  originalMajor: string | number | Decimal;
+  exchangeRate?: string | number | Decimal | null;
+}): {
+  currency: string;
+  originalAmountMinor: MinorUnits;
+  exchangeRate: string;
+  amountMinor: MinorUnits;
+} {
+  const currency = input.transactionCurrency.toUpperCase();
+  const base = input.baseCurrency.toUpperCase();
+  const originalAmountMinor = toMinorUnits(input.originalMajor);
+  assertPositiveAmount(originalAmountMinor, "Original amount");
+
+  if (currency === base) {
+    return {
+      currency,
+      originalAmountMinor,
+      exchangeRate: "1",
+      amountMinor: originalAmountMinor,
+    };
+  }
+
+  if (input.exchangeRate == null || String(input.exchangeRate).trim() === "") {
+    throw new MoneyError(
+      `Exchange rate is required when expense currency (${currency}) differs from organisation currency (${base})`,
+    );
+  }
+
+  const rate = parseExchangeRate(input.exchangeRate);
+  return {
+    currency,
+    originalAmountMinor,
+    exchangeRate: rate.toString(),
+    amountMinor: bookToBaseCurrency(originalAmountMinor, rate),
+  };
+}

@@ -3,7 +3,7 @@ import path from "node:path";
 import { createClient, type Client } from "@libsql/client";
 import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 import * as schema from "./schema";
-import { INIT_SQL } from "./sql";
+import { DROP_SQL, INIT_SQL } from "./sql";
 
 export type AppDb = LibSQLDatabase<typeof schema>;
 
@@ -25,7 +25,12 @@ function splitStatements(sql: string): string[] {
     .map((part) => `${part};`);
 }
 
-export async function applySchema(client: Client): Promise<void> {
+export async function applySchema(client: Client, options?: { recreate?: boolean }): Promise<void> {
+  if (options?.recreate) {
+    for (const statement of splitStatements(DROP_SQL)) {
+      await client.execute(statement);
+    }
+  }
   await client.execute("PRAGMA foreign_keys = ON;");
   for (const statement of splitStatements(INIT_SQL)) {
     await client.execute(statement);

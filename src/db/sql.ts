@@ -1,3 +1,16 @@
+export const DROP_SQL = `
+PRAGMA foreign_keys = OFF;
+DROP TABLE IF EXISTS expense_allocations;
+DROP TABLE IF EXISTS project_employees;
+DROP TABLE IF EXISTS invoices;
+DROP TABLE IF EXISTS expenses;
+DROP TABLE IF EXISTS projects;
+DROP TABLE IF EXISTS employees;
+DROP TABLE IF EXISTS branches;
+DROP TABLE IF EXISTS organisations;
+PRAGMA foreign_keys = ON;
+`;
+
 export const INIT_SQL = `
 PRAGMA foreign_keys = ON;
 
@@ -54,6 +67,9 @@ CREATE TABLE IF NOT EXISTS expenses (
   organisation_id INTEGER NOT NULL REFERENCES organisations(id) ON DELETE RESTRICT,
   branch_id INTEGER REFERENCES branches(id) ON DELETE RESTRICT,
   name TEXT NOT NULL,
+  currency TEXT NOT NULL,
+  original_amount INTEGER NOT NULL,
+  exchange_rate TEXT NOT NULL,
   amount INTEGER NOT NULL,
   expense_date TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -95,6 +111,7 @@ CREATE INDEX IF NOT EXISTS idx_project_employees_effective_to ON project_employe
 CREATE INDEX IF NOT EXISTS idx_expenses_organisation_id ON expenses(organisation_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_branch_id ON expenses(branch_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_expense_date ON expenses(expense_date);
+CREATE INDEX IF NOT EXISTS idx_expenses_currency ON expenses(currency);
 CREATE INDEX IF NOT EXISTS idx_expense_allocations_expense_id ON expense_allocations(expense_id);
 CREATE INDEX IF NOT EXISTS idx_expense_allocations_project_id ON expense_allocations(project_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_org_number ON invoices(organisation_id, invoice_number);

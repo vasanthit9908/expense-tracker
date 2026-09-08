@@ -7,9 +7,8 @@ import {
   allocateByPercentages,
   assertPercentSum100,
   fromStoredPercent,
-  toMinorUnits,
+  normalizeExpenseFx,
   toStoredPercent,
-  assertPositiveAmount,
 } from "@/lib/money";
 import { expenseInputSchema, parseSchema } from "@/validations";
 import { requireBranchInOrganisation } from "@/services/branch-service";
@@ -47,11 +46,15 @@ export async function listExpenseAllocations(expenseId: number): Promise<Expense
   return db.select().from(expenseAllocations).where(eq(expenseAllocations.expenseId, expenseId));
 }
 
-export async function createExpense(input: unknown): Promise<Expense> {
+async function resolveExpenseWrite(input: unknown) {
   const data = parseSchema(expenseInputSchema, input);
-  await requireOrganisation(data.organisationId);
-  const amount = toMinorUnits(data.amountMajor);
-  assertPositiveAmount(amount, "Amount");
+  const organisation = await requireOrganisation(data.organisationId);
+  const booked = normalizeExpenseFx({
+    transactionCurrency: data.currency,
+    baseCurrency: organisation.currency,
+    originalMajor: data.originalAmountMajor,
+    exchangeRate: data.exchangeRate,
+  });
   if (data.scope === "branch" && data.branchId) {
     await requireBranchInOrganisation(data.branchId, data.organisationId);
   }
@@ -62,7 +65,12 @@ export async function createExpense(input: unknown): Promise<Expense> {
       await requireProjectInOrganisation(allocation.projectId, data.organisationId);
     }
   }
-  const amounts = allocateByPercentages(amount, percentages);
+  const amounts = allocateByPercentages(booked.amountMinor, percentages);
+  return { data, booked, amounts };
+}
+
+export async function createExpense(input: unknown): Promise<Expense> {
+  const { data, booked, amounts } = await resolveExpenseWrite(input);
   const db = await getDb();
   return db.transaction(async (tx) => {
     const [expense] = await tx
@@ -71,7 +79,10 @@ export async function createExpense(input: unknown): Promise<Expense> {
         organisationId: data.organisationId,
         branchId: data.scope === "branch" ? data.branchId! : null,
         name: data.name,
-        amount: Number(amount),
+        currency: booked.currency,
+        originalAmount: Number(booked.originalAmountMinor),
+        exchangeRate: booked.exchangeRate,
+        amount: Number(booked.amountMinor),
         expenseDate: data.expenseDate,
       })
       .returning();
@@ -92,21 +103,7 @@ export async function createExpense(input: unknown): Promise<Expense> {
 
 export async function updateExpense(id: number, input: unknown): Promise<Expense> {
   await requireExpense(id);
-  const data = parseSchema(expenseInputSchema, input);
-  await requireOrganisation(data.organisationId);
-  const amount = toMinorUnits(data.amountMajor);
-  assertPositiveAmount(amount, "Amount");
-  if (data.scope === "branch" && data.branchId) {
-    await requireBranchInOrganisation(data.branchId, data.organisationId);
-  }
-  const percentages = data.allocations.map((item) => new Decimal(item.allocationPercentage));
-  if (data.scope === "projects") {
-    assertPercentSum100(percentages);
-    for (const allocation of data.allocations) {
-      await requireProjectInOrganisation(allocation.projectId, data.organisationId);
-    }
-  }
-  const amounts = allocateByPercentages(amount, percentages);
+  const { data, booked, amounts } = await resolveExpenseWrite(input);
   const db = await getDb();
   return db.transaction(async (tx) => {
     const [expense] = await tx
@@ -115,7 +112,10 @@ export async function updateExpense(id: number, input: unknown): Promise<Expense
         organisationId: data.organisationId,
         branchId: data.scope === "branch" ? data.branchId! : null,
         name: data.name,
-        amount: Number(amount),
+        currency: booked.currency,
+        originalAmount: Number(booked.originalAmountMinor),
+        exchangeRate: booked.exchangeRate,
+        amount: Number(booked.amountMinor),
         expenseDate: data.expenseDate,
         updatedAt: new Date().toISOString().slice(0, 19).replace("T", " "),
       })

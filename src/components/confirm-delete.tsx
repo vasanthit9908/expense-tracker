@@ -26,7 +26,7 @@ export function ConfirmDelete({
 }: {
   title: string;
   description: string;
-  action: (id: number) => Promise<ActionResult>;
+  action: (id: number) => Promise<ActionResult<unknown>>;
   id: number;
   redirectTo?: string;
 }) {

@@ -7,7 +7,9 @@ type ExpensePayload = {
   organisationId: number;
   branchId?: number | null;
   name: string;
-  amountMajor: string;
+  currency: string;
+  originalAmountMajor: string;
+  exchangeRate?: string | null;
   expenseDate: string;
   scope: "organisation" | "branch" | "projects";
   allocations: { projectId: number; allocationPercentage: number }[];

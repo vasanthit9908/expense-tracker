@@ -1,11 +1,16 @@
 import fs from "node:fs";
-import { getDbPath } from "./client";
+import { applySchema, createSqliteClient, getDbPath } from "./client";
 
-const dbPath = getDbPath();
-for (const suffix of ["", "-wal", "-shm", "-journal"]) {
-  const file = `${dbPath}${suffix}`;
-  if (fs.existsSync(file)) {
-    fs.unlinkSync(file);
-  }
+async function main() {
+  const dbPath = getDbPath();
+  fs.mkdirSync(dbPath.replace(/[/\\][^/\\]+$/, ""), { recursive: true });
+  const client = createSqliteClient(`file:${dbPath.replace(/\\/g, "/")}`);
+  await applySchema(client, { recreate: true });
+  client.close();
+  console.log(`Schema recreated at ${dbPath}. Run npm run db:seed to load sample data.`);
 }
-console.log("Removed local SQLite files. Run npm run db:migrate && npm run db:seed");
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

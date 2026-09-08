@@ -11,7 +11,7 @@ export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 
 export type ExpenseScope = "organisation" | "branch" | "projects";
 
-export type ActionResult<T = undefined> =
+export type ActionResult<T = unknown> =
   | { ok: true; data?: T }
   | { ok: false; error: string };
 

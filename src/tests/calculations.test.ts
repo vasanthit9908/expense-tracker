@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import Decimal from "decimal.js";
 import {
   allocateByPercentages,
+  bookToBaseCurrency,
   fromMinorUnits,
+  normalizeExpenseFx,
   percentOf,
   toMinorUnits,
   toStoredPercent,
@@ -83,6 +85,27 @@ describe("money and currency", () => {
     expect(percentOf(rupees("10.005"), pct(100))).toBe(rupees("10.01"));
     expect(toStoredPercent(50.5)).toBe(5050);
     expect(Number(fromStoredPercent(5050))).toBe(50.5);
+  });
+
+  it("books foreign-currency expenses into the organisation base currency", () => {
+    // ₹83,000 @ 0.012 USD/INR = $996.00
+    expect(bookToBaseCurrency(toMinorUnits(83000), "0.012")).toBe(toMinorUnits(996));
+    const same = normalizeExpenseFx({
+      transactionCurrency: "USD",
+      baseCurrency: "USD",
+      originalMajor: "20",
+      exchangeRate: "99",
+    });
+    expect(same.exchangeRate).toBe("1");
+    expect(same.amountMinor).toBe(toMinorUnits(20));
+    const fx = normalizeExpenseFx({
+      transactionCurrency: "INR",
+      baseCurrency: "USD",
+      originalMajor: "83000",
+      exchangeRate: "0.012",
+    });
+    expect(fx.currency).toBe("INR");
+    expect(fx.amountMinor).toBe(toMinorUnits(996));
   });
 });
 

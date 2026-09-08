@@ -6,7 +6,7 @@
 
 Project org_pnl {
   database_type: 'SQLite'
-  Note: 'Local SQLite schema for organisation / branch / project P&L. Monetary amounts are stored as integer minor units (paise/cents). Percentages are stored as integer basis points (e.g. 5050 = 50.50%). Dates are ISO YYYY-MM-DD text.'
+  Note: 'Local SQLite schema for organisation / branch / project P&L. Organisation.currency is the reporting/base currency. Expense.amount is always booked in that base currency; expense.currency + original_amount + exchange_rate capture the paid currency. Percentages are integer basis points (e.g. 5050 = 50.50%). Dates are ISO YYYY-MM-DD text.'
 }
 
 Table organisations {
@@ -91,7 +91,10 @@ Table expenses {
   organisation_id integer [not null]
   branch_id integer [note: 'Null = organisation-level expense (when no project allocations). Set = branch-level expense.']
   name text [not null]
-  amount integer [not null, note: 'Amount in minor units']
+  currency text [not null, note: 'Transaction / paid currency (ISO 4217). May differ from organisation.currency.']
+  original_amount integer [not null, note: 'Amount paid in transaction currency (minor units)']
+  exchange_rate text [not null, note: 'Base-currency units per 1 transaction-currency unit. Forced to 1 when currencies match.']
+  amount integer [not null, note: 'Booked amount in organisation base currency = original_amount × exchange_rate. P&L always uses this.']
   expense_date text [not null, note: 'ISO date YYYY-MM-DD']
   created_at text [not null, default: `datetime('now')`]
   updated_at text [not null, default: `datetime('now')`]
@@ -100,9 +103,10 @@ Table expenses {
     organisation_id [name: 'idx_expenses_organisation_id']
     branch_id [name: 'idx_expenses_branch_id']
     expense_date [name: 'idx_expenses_expense_date']
+    currency [name: 'idx_expenses_currency']
   }
 
-  Note: 'No project_id on expenses. Scopes: organisation (branch_id null, no allocations), branch (branch_id set, no allocations), projects (branch_id null, allocations summing to 100%).'
+  Note: 'No project_id on expenses. Scopes: organisation / branch / projects. Foreign-currency expenses require exchange_rate; P&L never mixes currencies — only amount (base) is used.'
 }
 
 Table expense_allocations {

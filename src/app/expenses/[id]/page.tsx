@@ -17,7 +17,7 @@ export default async function EditExpensePage({ params }: { params: Promise<{ id
   const organisations = await listOrganisations();
   const branches = await listBranches();
   const projects = await listProjects();
-  const currency = organisations.find((org) => org.id === expense.organisationId)?.currency ?? "INR";
+  const currency = organisations.find((org) => org.id === expense.organisationId)?.currency ?? "USD";
   return (
     <div className="space-y-6">
       <PageHeader title={`Edit ${expense.name}`} />
@@ -32,7 +32,9 @@ export default async function EditExpensePage({ params }: { params: Promise<{ id
           organisationId: expense.organisationId,
           branchId: expense.branchId,
           name: expense.name,
-          amountMajor: fromMinorUnits(BigInt(expense.amount)).toString(),
+          currency: expense.currency,
+          originalAmountMajor: fromMinorUnits(BigInt(expense.originalAmount)).toString(),
+          exchangeRate: expense.exchangeRate,
           expenseDate: expense.expenseDate,
           scope: expenseScope(expense, allocations.length),
           allocations: allocations.map((item) => ({

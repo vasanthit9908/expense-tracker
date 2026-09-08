@@ -10,7 +10,7 @@ export default async function NewExpensePage() {
   const selected = await getSelectedOrganisationId();
   const branches = await listBranches();
   const projects = await listProjects();
-  const currency = organisations.find((org) => org.id === selected)?.currency ?? "INR";
+  const currency = organisations.find((org) => org.id === selected)?.currency ?? "USD";
   return (
     <div>
       <PageHeader title="New expense" />

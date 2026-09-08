@@ -9,8 +9,8 @@ import { Field, FormGrid } from "@/components/page-header";
 import { NativeSelect } from "@/components/native-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatMoney } from "@/lib/currency";
-import { allocateByPercentages, toMinorUnits } from "@/lib/money";
+import { SUPPORTED_CURRENCIES, formatMoney } from "@/lib/currency";
+import { allocateByPercentages, bookToBaseCurrency, toMinorUnits } from "@/lib/money";
 
 type AllocationRow = { projectId: number; allocationPercentage: string };
 
@@ -32,7 +32,9 @@ export function ExpenseForm({
     organisationId: number;
     branchId: number | null;
     name: string;
-    amountMajor: string;
+    currency: string;
+    originalAmountMajor: string;
+    exchangeRate: string;
     expenseDate: string;
     scope: "organisation" | "branch" | "projects";
     allocations: { projectId: number; allocationPercentage: number }[];
@@ -48,7 +50,15 @@ export function ExpenseForm({
   );
   const [branchId, setBranchId] = useState(expense?.branchId ?? branches[0]?.id ?? 0);
   const [name, setName] = useState(expense?.name ?? "");
-  const [amountMajor, setAmountMajor] = useState(expense?.amountMajor ?? "");
+  const baseCurrency =
+    organisations.find((org) => org.id === organisationId)?.currency ?? currency;
+  const [txnCurrency, setTxnCurrency] = useState(expense?.currency ?? baseCurrency);
+  const [originalAmountMajor, setOriginalAmountMajor] = useState(
+    expense?.originalAmountMajor ?? "",
+  );
+  const [exchangeRate, setExchangeRate] = useState(
+    expense?.exchangeRate ?? (expense?.currency === baseCurrency || !expense ? "1" : expense.exchangeRate),
+  );
   const [expenseDate, setExpenseDate] = useState(expense?.expenseDate ?? "");
   const [allocations, setAllocations] = useState<AllocationRow[]>(
     expense?.allocations.map((item) => ({
@@ -59,7 +69,17 @@ export function ExpenseForm({
 
   const orgBranches = branches.filter((branch) => branch.organisationId === organisationId);
   const orgProjects = projects.filter((project) => project.organisationId === organisationId);
-  const selectedCurrency = organisations.find((org) => org.id === organisationId)?.currency ?? currency;
+  const needsRate = txnCurrency.toUpperCase() !== baseCurrency.toUpperCase();
+
+  const bookedMinor = useMemo(() => {
+    try {
+      const original = toMinorUnits(originalAmountMajor || "0");
+      if (!needsRate) return original;
+      return bookToBaseCurrency(original, exchangeRate || "0");
+    } catch {
+      return 0n;
+    }
+  }, [originalAmountMajor, exchangeRate, needsRate]);
 
   const percentSum = allocations.reduce(
     (sum, row) => sum.plus(row.allocationPercentage || 0),
@@ -68,18 +88,20 @@ export function ExpenseForm({
   const remaining = new Decimal(100).minus(percentSum);
   const previewAmounts = useMemo(() => {
     try {
-      const amount = toMinorUnits(amountMajor || "0");
       const percents = allocations.map((row) => new Decimal(row.allocationPercentage || 0));
-      return allocateByPercentages(amount, percents);
+      return allocateByPercentages(bookedMinor, percents);
     } catch {
       return allocations.map(() => 0n);
     }
-  }, [amountMajor, allocations]);
+  }, [bookedMinor, allocations]);
 
   function addRow() {
     setAllocations((rows) => [
       ...rows,
-      { projectId: orgProjects[0]?.id ?? 0, allocationPercentage: remaining.gt(0) ? remaining.toString() : "0" },
+      {
+        projectId: orgProjects[0]?.id ?? 0,
+        allocationPercentage: remaining.gt(0) ? remaining.toString() : "0",
+      },
     ]);
   }
 
@@ -89,12 +111,18 @@ export function ExpenseForm({
       toast.error("Project allocations must equal 100%");
       return;
     }
+    if (needsRate && (!exchangeRate || Number(exchangeRate) <= 0)) {
+      toast.error("Enter a positive exchange rate to book into the organisation currency");
+      return;
+    }
     setPending(true);
     const payload = {
       organisationId,
       branchId: scope === "branch" ? branchId : null,
       name,
-      amountMajor,
+      currency: txnCurrency,
+      originalAmountMajor,
+      exchangeRate: needsRate ? exchangeRate : "1",
       expenseDate,
       scope,
       allocations:
@@ -124,12 +152,21 @@ export function ExpenseForm({
         <Field label="Organisation">
           <NativeSelect
             value={organisationId}
-            onChange={(event) => setOrganisationId(Number(event.target.value))}
+            onChange={(event) => {
+              const nextId = Number(event.target.value);
+              setOrganisationId(nextId);
+              const nextBase =
+                organisations.find((org) => org.id === nextId)?.currency ?? currency;
+              if (txnCurrency === baseCurrency) {
+                setTxnCurrency(nextBase);
+                setExchangeRate("1");
+              }
+            }}
             required
           >
             {organisations.map((org) => (
               <option key={org.id} value={org.id}>
-                {org.name}
+                {org.name} ({org.currency})
               </option>
             ))}
           </NativeSelect>
@@ -146,7 +183,11 @@ export function ExpenseForm({
         </Field>
         {scope === "branch" ? (
           <Field label="Branch">
-            <NativeSelect value={branchId} onChange={(event) => setBranchId(Number(event.target.value))} required>
+            <NativeSelect
+              value={branchId}
+              onChange={(event) => setBranchId(Number(event.target.value))}
+              required
+            >
               {orgBranches.map((branch) => (
                 <option key={branch.id} value={branch.id}>
                   {branch.name}
@@ -158,11 +199,59 @@ export function ExpenseForm({
         <Field label="Expense name" className={scope === "branch" ? "" : "sm:col-span-2"}>
           <Input value={name} onChange={(event) => setName(event.target.value)} required />
         </Field>
-        <Field label="Amount">
-          <Input value={amountMajor} onChange={(event) => setAmountMajor(event.target.value)} required />
+        <Field label="Paid currency">
+          <NativeSelect
+            value={txnCurrency}
+            onChange={(event) => {
+              const next = event.target.value;
+              setTxnCurrency(next);
+              if (next.toUpperCase() === baseCurrency.toUpperCase()) {
+                setExchangeRate("1");
+              }
+            }}
+            required
+          >
+            {SUPPORTED_CURRENCIES.map((code) => (
+              <option key={code} value={code}>
+                {code}
+              </option>
+            ))}
+          </NativeSelect>
         </Field>
+        <Field label={`Amount (${txnCurrency})`}>
+          <Input
+            value={originalAmountMajor}
+            onChange={(event) => setOriginalAmountMajor(event.target.value)}
+            required
+          />
+        </Field>
+        {needsRate ? (
+          <Field
+            label={`Exchange rate (${baseCurrency} per 1 ${txnCurrency})`}
+            className="sm:col-span-2"
+          >
+            <Input
+              value={exchangeRate}
+              onChange={(event) => setExchangeRate(event.target.value)}
+              placeholder="e.g. 0.012"
+              required
+            />
+            <span className="text-xs font-normal text-muted-foreground">
+              Booked amount (P&amp;L): {formatMoney(bookedMinor, baseCurrency)}
+            </span>
+          </Field>
+        ) : (
+          <Field label={`Booked amount (${baseCurrency})`}>
+            <Input value={formatMoney(bookedMinor, baseCurrency)} disabled />
+          </Field>
+        )}
         <Field label="Date">
-          <Input type="date" value={expenseDate} onChange={(event) => setExpenseDate(event.target.value)} required />
+          <Input
+            type="date"
+            value={expenseDate}
+            onChange={(event) => setExpenseDate(event.target.value)}
+            required
+          />
         </Field>
       </FormGrid>
 
@@ -174,6 +263,10 @@ export function ExpenseForm({
               Add project
             </Button>
           </div>
+          <p className="text-sm text-muted-foreground">
+            Allocations use the booked organisation-currency amount (
+            {formatMoney(bookedMinor, baseCurrency)}).
+          </p>
           {allocations.map((row, index) => (
             <div key={`${row.projectId}-${index}`} className="grid gap-2 sm:grid-cols-3">
               <NativeSelect
@@ -209,12 +302,14 @@ export function ExpenseForm({
                 }}
               />
               <div className="flex items-center justify-between gap-2 text-sm">
-                <span>{formatMoney(previewAmounts[index] ?? 0n, selectedCurrency)}</span>
+                <span>{formatMoney(previewAmounts[index] ?? 0n, baseCurrency)}</span>
                 {allocations.length > 1 ? (
                   <Button
                     type="button"
                     variant="ghost"
-                    onClick={() => setAllocations((rows) => rows.filter((_, itemIndex) => itemIndex !== index))}
+                    onClick={() =>
+                      setAllocations((rows) => rows.filter((_, itemIndex) => itemIndex !== index))
+                    }
                   >
                     Remove
                   </Button>

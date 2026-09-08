@@ -16,7 +16,7 @@ async function main() {
 
   const org = await createOrganisation({
     name: "ABC Technologies",
-    currency: "INR",
+    currency: "USD",
   });
 
   const hyderabad = await createBranch({
@@ -55,17 +55,17 @@ async function main() {
   const ravi = await createEmployee({
     organisationId: org.id,
     name: "Ravi",
-    ctcMajor: "1200000",
+    ctcMajor: "14400",
   });
   const priya = await createEmployee({
     organisationId: org.id,
     name: "Priya",
-    ctcMajor: "1500000",
+    ctcMajor: "18000",
   });
   const john = await createEmployee({
     organisationId: org.id,
     name: "John",
-    ctcMajor: "1800000",
+    ctcMajor: "21600",
   });
 
   await createAllocation({
@@ -104,20 +104,27 @@ async function main() {
     effectiveTo: null,
   });
 
+  // USD org-currency expense
   await createExpense({
     organisationId: org.id,
     scope: "organisation",
     name: "Company insurance",
-    amountMajor: "100000",
+    currency: "USD",
+    originalAmountMajor: "1200",
+    exchangeRate: "1",
     expenseDate: "2026-09-01",
     allocations: [],
   });
+
+  // INR electricity bills booked into USD (₹83,000 @ 0.012 = $996)
   await createExpense({
     organisationId: org.id,
     scope: "branch",
     branchId: hyderabad.id,
-    name: "Hyderabad office rent",
-    amountMajor: "200000",
+    name: "Hyderabad electricity bill",
+    currency: "INR",
+    originalAmountMajor: "83000",
+    exchangeRate: "0.012",
     expenseDate: "2026-09-01",
     allocations: [],
   });
@@ -126,15 +133,37 @@ async function main() {
     scope: "branch",
     branchId: bangalore.id,
     name: "Bangalore office rent",
-    amountMajor: "180000",
+    currency: "INR",
+    originalAmountMajor: "150000",
+    exchangeRate: "0.012",
     expenseDate: "2026-09-01",
     allocations: [],
   });
+
+  // Cursor subscription paid in USD (same as org currency)
+  await createExpense({
+    organisationId: org.id,
+    scope: "projects",
+    name: "Cursor Pro subscription",
+    currency: "USD",
+    originalAmountMajor: "20",
+    exchangeRate: "1",
+    expenseDate: "2026-09-05",
+    allocations: [
+      { projectId: alpha.id, allocationPercentage: 50 },
+      { projectId: beta.id, allocationPercentage: 30 },
+      { projectId: internal.id, allocationPercentage: 20 },
+    ],
+  });
+
+  // AWS in USD split across projects
   await createExpense({
     organisationId: org.id,
     scope: "projects",
     name: "AWS infrastructure",
-    amountMajor: "100000",
+    currency: "USD",
+    originalAmountMajor: "1200",
+    exchangeRate: "1",
     expenseDate: "2026-09-10",
     allocations: [
       { projectId: alpha.id, allocationPercentage: 50 },
@@ -142,19 +171,25 @@ async function main() {
       { projectId: internal.id, allocationPercentage: 20 },
     ],
   });
+
   await createExpense({
     organisationId: org.id,
     scope: "projects",
     name: "Alpha software licences",
-    amountMajor: "40000",
+    currency: "USD",
+    originalAmountMajor: "480",
+    exchangeRate: "1",
     expenseDate: "2026-09-05",
     allocations: [{ projectId: alpha.id, allocationPercentage: 100 }],
   });
+
   await createExpense({
     organisationId: org.id,
     scope: "projects",
     name: "Internal tooling",
-    amountMajor: "50000",
+    currency: "USD",
+    originalAmountMajor: "600",
+    exchangeRate: "1",
     expenseDate: "2026-09-12",
     allocations: [{ projectId: internal.id, allocationPercentage: 100 }],
   });
@@ -165,7 +200,7 @@ async function main() {
     branchId: hyderabad.id,
     projectId: alpha.id,
     description: "Project Alpha September billing",
-    amountMajor: "800000",
+    amountMajor: "9600",
     invoiceDate: "2026-09-15",
     dueDate: "2026-09-30",
     status: "PAID",
@@ -176,7 +211,7 @@ async function main() {
     branchId: bangalore.id,
     projectId: beta.id,
     description: "Project Beta September billing",
-    amountMajor: "500000",
+    amountMajor: "6000",
     invoiceDate: "2026-09-18",
     dueDate: "2026-10-02",
     status: "ISSUED",
@@ -187,7 +222,7 @@ async function main() {
     branchId: hyderabad.id,
     projectId: null,
     description: "Hyderabad training services",
-    amountMajor: "50000",
+    amountMajor: "600",
     invoiceDate: "2026-09-08",
     status: "PAID",
   });
@@ -197,7 +232,7 @@ async function main() {
     branchId: null,
     projectId: null,
     description: "Organisation consulting retainer",
-    amountMajor: "100000",
+    amountMajor: "1200",
     invoiceDate: "2026-09-20",
     status: "PAID",
   });
@@ -207,12 +242,14 @@ async function main() {
     branchId: hyderabad.id,
     projectId: alpha.id,
     description: "Cancelled Alpha change request",
-    amountMajor: "200000",
+    amountMajor: "2400",
     invoiceDate: "2026-09-22",
     status: "CANCELLED",
   });
 
-  console.log("Seeded ABC Technologies (INR) with branches, projects, employees, expenses and invoices.");
+  console.log(
+    "Seeded ABC Technologies (USD) with INR electricity bills and a USD Cursor subscription.",
+  );
 }
 
 main().catch((error) => {
