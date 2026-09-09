@@ -1,5 +1,5 @@
 export const DROP_SQL = `
-PRAGMA foreign_keys = OFF;
+SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS expense_allocations;
 DROP TABLE IF EXISTS project_employees;
 DROP TABLE IF EXISTS invoices;
@@ -8,116 +8,137 @@ DROP TABLE IF EXISTS projects;
 DROP TABLE IF EXISTS employees;
 DROP TABLE IF EXISTS branches;
 DROP TABLE IF EXISTS organisations;
-PRAGMA foreign_keys = ON;
+SET FOREIGN_KEY_CHECKS = 1;
 `;
 
 export const INIT_SQL = `
-PRAGMA foreign_keys = ON;
-
 CREATE TABLE IF NOT EXISTS organisations (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  currency TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  currency VARCHAR(3) NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS branches (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  organisation_id INTEGER NOT NULL REFERENCES organisations(id) ON DELETE RESTRICT,
-  name TEXT NOT NULL,
-  location TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  organisation_id INT NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  location VARCHAR(255) NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_branches_organisation
+    FOREIGN KEY (organisation_id) REFERENCES organisations(id) ON DELETE RESTRICT,
+  INDEX idx_branches_organisation_id (organisation_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS projects (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  branch_id INTEGER NOT NULL REFERENCES branches(id) ON DELETE RESTRICT,
-  name TEXT NOT NULL,
-  billable INTEGER NOT NULL,
-  start_date TEXT NOT NULL,
-  end_date TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  branch_id INT NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  billable TINYINT(1) NOT NULL,
+  start_date VARCHAR(10) NOT NULL,
+  end_date VARCHAR(10) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_projects_branch
+    FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE RESTRICT,
+  INDEX idx_projects_branch_id (branch_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS employees (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  organisation_id INTEGER NOT NULL REFERENCES organisations(id) ON DELETE RESTRICT,
-  name TEXT NOT NULL,
-  ctc INTEGER NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  organisation_id INT NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  ctc INT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_employees_organisation
+    FOREIGN KEY (organisation_id) REFERENCES organisations(id) ON DELETE RESTRICT,
+  INDEX idx_employees_organisation_id (organisation_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS project_employees (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE RESTRICT,
-  employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
-  allocation_percentage INTEGER NOT NULL,
-  effective_from TEXT NOT NULL,
-  effective_to TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  project_id INT NOT NULL,
+  employee_id INT NOT NULL,
+  allocation_percentage INT NOT NULL,
+  effective_from VARCHAR(10) NOT NULL,
+  effective_to VARCHAR(10) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_project_employees_project
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_project_employees_employee
+    FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE RESTRICT,
+  INDEX idx_project_employees_project_id (project_id),
+  INDEX idx_project_employees_employee_id (employee_id),
+  INDEX idx_project_employees_effective_from (effective_from),
+  INDEX idx_project_employees_effective_to (effective_to)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS expenses (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  organisation_id INTEGER NOT NULL REFERENCES organisations(id) ON DELETE RESTRICT,
-  branch_id INTEGER REFERENCES branches(id) ON DELETE RESTRICT,
-  name TEXT NOT NULL,
-  currency TEXT NOT NULL,
-  original_amount INTEGER NOT NULL,
-  exchange_rate TEXT NOT NULL,
-  amount INTEGER NOT NULL,
-  expense_date TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  organisation_id INT NOT NULL,
+  branch_id INT NULL,
+  name VARCHAR(255) NOT NULL,
+  currency VARCHAR(3) NOT NULL,
+  original_amount INT NOT NULL,
+  exchange_rate VARCHAR(64) NOT NULL,
+  amount INT NOT NULL,
+  expense_date VARCHAR(10) NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_expenses_organisation
+    FOREIGN KEY (organisation_id) REFERENCES organisations(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_expenses_branch
+    FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE RESTRICT,
+  INDEX idx_expenses_organisation_id (organisation_id),
+  INDEX idx_expenses_branch_id (branch_id),
+  INDEX idx_expenses_expense_date (expense_date),
+  INDEX idx_expenses_currency (currency)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS expense_allocations (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  expense_id INTEGER NOT NULL REFERENCES expenses(id) ON DELETE CASCADE,
-  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE RESTRICT,
-  allocation_percentage INTEGER NOT NULL,
-  allocated_amount INTEGER NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  expense_id INT NOT NULL,
+  project_id INT NOT NULL,
+  allocation_percentage INT NOT NULL,
+  allocated_amount INT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_expense_allocations_expense
+    FOREIGN KEY (expense_id) REFERENCES expenses(id) ON DELETE CASCADE,
+  CONSTRAINT fk_expense_allocations_project
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
+  INDEX idx_expense_allocations_expense_id (expense_id),
+  INDEX idx_expense_allocations_project_id (project_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS invoices (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  invoice_number TEXT NOT NULL,
-  organisation_id INTEGER NOT NULL REFERENCES organisations(id) ON DELETE RESTRICT,
-  branch_id INTEGER REFERENCES branches(id) ON DELETE RESTRICT,
-  project_id INTEGER REFERENCES projects(id) ON DELETE RESTRICT,
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  invoice_number VARCHAR(64) NOT NULL,
+  organisation_id INT NOT NULL,
+  branch_id INT NULL,
+  project_id INT NULL,
   description TEXT NOT NULL,
-  amount INTEGER NOT NULL,
-  invoice_date TEXT NOT NULL,
-  due_date TEXT,
-  status TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_branches_organisation_id ON branches(organisation_id);
-CREATE INDEX IF NOT EXISTS idx_projects_branch_id ON projects(branch_id);
-CREATE INDEX IF NOT EXISTS idx_employees_organisation_id ON employees(organisation_id);
-CREATE INDEX IF NOT EXISTS idx_project_employees_project_id ON project_employees(project_id);
-CREATE INDEX IF NOT EXISTS idx_project_employees_employee_id ON project_employees(employee_id);
-CREATE INDEX IF NOT EXISTS idx_project_employees_effective_from ON project_employees(effective_from);
-CREATE INDEX IF NOT EXISTS idx_project_employees_effective_to ON project_employees(effective_to);
-CREATE INDEX IF NOT EXISTS idx_expenses_organisation_id ON expenses(organisation_id);
-CREATE INDEX IF NOT EXISTS idx_expenses_branch_id ON expenses(branch_id);
-CREATE INDEX IF NOT EXISTS idx_expenses_expense_date ON expenses(expense_date);
-CREATE INDEX IF NOT EXISTS idx_expenses_currency ON expenses(currency);
-CREATE INDEX IF NOT EXISTS idx_expense_allocations_expense_id ON expense_allocations(expense_id);
-CREATE INDEX IF NOT EXISTS idx_expense_allocations_project_id ON expense_allocations(project_id);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_org_number ON invoices(organisation_id, invoice_number);
-CREATE INDEX IF NOT EXISTS idx_invoices_organisation_id ON invoices(organisation_id);
-CREATE INDEX IF NOT EXISTS idx_invoices_branch_id ON invoices(branch_id);
-CREATE INDEX IF NOT EXISTS idx_invoices_project_id ON invoices(project_id);
-CREATE INDEX IF NOT EXISTS idx_invoices_invoice_date ON invoices(invoice_date);
-CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
+  amount INT NOT NULL,
+  invoice_date VARCHAR(10) NOT NULL,
+  due_date VARCHAR(10) NULL,
+  status VARCHAR(32) NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_invoices_organisation
+    FOREIGN KEY (organisation_id) REFERENCES organisations(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_invoices_branch
+    FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_invoices_project
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
+  UNIQUE INDEX idx_invoices_org_number (organisation_id, invoice_number),
+  INDEX idx_invoices_organisation_id (organisation_id),
+  INDEX idx_invoices_branch_id (branch_id),
+  INDEX idx_invoices_project_id (project_id),
+  INDEX idx_invoices_invoice_date (invoice_date),
+  INDEX idx_invoices_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `;

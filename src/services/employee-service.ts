@@ -1,6 +1,6 @@
 import { and, eq, ne } from "drizzle-orm";
 import Decimal from "decimal.js";
-import { getDb } from "@/db/client";
+import { getDb, insertIdFromResult, nowSqlTimestamp } from "@/db/client";
 import { employees, projectEmployees, type Employee, type ProjectEmployee } from "@/db/schema";
 import { AppError } from "@/lib/errors";
 import { toMinorUnits, toStoredPercent, fromStoredPercent, assertPositiveAmount } from "@/lib/money";
@@ -46,15 +46,12 @@ export async function createEmployee(input: unknown): Promise<Employee> {
   const ctc = toMinorUnits(data.ctcMajor);
   assertPositiveAmount(ctc, "CTC");
   const db = await getDb();
-  const [row] = await db
-    .insert(employees)
-    .values({
-      organisationId: data.organisationId,
-      name: data.name,
-      ctc: Number(ctc),
-    })
-    .returning();
-  return row!;
+  const result = await db.insert(employees).values({
+    organisationId: data.organisationId,
+    name: data.name,
+    ctc: Number(ctc),
+  });
+  return requireEmployee(await insertIdFromResult(result));
 }
 
 export async function updateEmployee(id: number, input: unknown): Promise<Employee> {
@@ -64,17 +61,16 @@ export async function updateEmployee(id: number, input: unknown): Promise<Employ
   const ctc = toMinorUnits(data.ctcMajor);
   assertPositiveAmount(ctc, "CTC");
   const db = await getDb();
-  const [row] = await db
+  await db
     .update(employees)
     .set({
       organisationId: data.organisationId,
       name: data.name,
       ctc: Number(ctc),
-      updatedAt: new Date().toISOString().slice(0, 19).replace("T", " "),
+      updatedAt: nowSqlTimestamp(),
     })
-    .where(eq(employees.id, id))
-    .returning();
-  return row!;
+    .where(eq(employees.id, id));
+  return requireEmployee(id);
 }
 
 export async function deleteEmployee(id: number): Promise<void> {
@@ -127,7 +123,11 @@ async function assertEmployeeProjectSameOrg(employeeId: number, projectId: numbe
   }
 }
 
-async function assertNoOverlap(employeeId: number, incoming: AllocationInterval, excludeId?: number): Promise<void> {
+async function assertNoOverlap(
+  employeeId: number,
+  incoming: AllocationInterval,
+  excludeId?: number,
+): Promise<void> {
   const db = await getDb();
   const rows = excludeId
     ? await db
@@ -138,6 +138,15 @@ async function assertNoOverlap(employeeId: number, incoming: AllocationInterval,
   if (employeeAllocationExceeds100(rows.map(toInterval), incoming)) {
     throw new AppError("Overlapping allocations cannot exceed 100% for the same employee");
   }
+}
+
+async function requireAllocation(id: number): Promise<ProjectEmployee> {
+  const db = await getDb();
+  const [row] = await db.select().from(projectEmployees).where(eq(projectEmployees.id, id)).limit(1);
+  if (!row) {
+    throw new AppError("Allocation not found");
+  }
+  return row;
 }
 
 export async function createAllocation(input: unknown): Promise<ProjectEmployee> {
@@ -152,25 +161,18 @@ export async function createAllocation(input: unknown): Promise<ProjectEmployee>
   };
   await assertNoOverlap(data.employeeId, incoming);
   const db = await getDb();
-  const [row] = await db
-    .insert(projectEmployees)
-    .values({
-      projectId: data.projectId,
-      employeeId: data.employeeId,
-      allocationPercentage: toStoredPercent(data.allocationPercentage),
-      effectiveFrom: data.effectiveFrom,
-      effectiveTo: data.effectiveTo ?? null,
-    })
-    .returning();
-  return row!;
+  const result = await db.insert(projectEmployees).values({
+    projectId: data.projectId,
+    employeeId: data.employeeId,
+    allocationPercentage: toStoredPercent(data.allocationPercentage),
+    effectiveFrom: data.effectiveFrom,
+    effectiveTo: data.effectiveTo ?? null,
+  });
+  return requireAllocation(await insertIdFromResult(result));
 }
 
 export async function updateAllocation(id: number, input: unknown): Promise<ProjectEmployee> {
-  const db = await getDb();
-  const [existing] = await db.select().from(projectEmployees).where(eq(projectEmployees.id, id)).limit(1);
-  if (!existing) {
-    throw new AppError("Allocation not found");
-  }
+  await requireAllocation(id);
   const data = parseSchema(projectEmployeeInputSchema, input);
   await requireProject(data.projectId);
   await assertEmployeeProjectSameOrg(data.employeeId, data.projectId);
@@ -182,7 +184,8 @@ export async function updateAllocation(id: number, input: unknown): Promise<Proj
     effectiveTo: data.effectiveTo ?? null,
   };
   await assertNoOverlap(data.employeeId, incoming, id);
-  const [row] = await db
+  const db = await getDb();
+  await db
     .update(projectEmployees)
     .set({
       projectId: data.projectId,
@@ -190,11 +193,10 @@ export async function updateAllocation(id: number, input: unknown): Promise<Proj
       allocationPercentage: toStoredPercent(data.allocationPercentage),
       effectiveFrom: data.effectiveFrom,
       effectiveTo: data.effectiveTo ?? null,
-      updatedAt: new Date().toISOString().slice(0, 19).replace("T", " "),
+      updatedAt: nowSqlTimestamp(),
     })
-    .where(eq(projectEmployees.id, id))
-    .returning();
-  return row!;
+    .where(eq(projectEmployees.id, id));
+  return requireAllocation(id);
 }
 
 export async function deleteAllocation(id: number): Promise<void> {

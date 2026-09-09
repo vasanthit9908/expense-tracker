@@ -1,11 +1,13 @@
 import { eq } from "drizzle-orm";
-import { getDb } from "@/db/client";
+import { getDb, insertIdFromResult, nowSqlTimestamp } from "@/db/client";
 import { branches, projects, type Project } from "@/db/schema";
 import { AppError } from "@/lib/errors";
 import { parseSchema, projectInputSchema } from "@/validations";
 import { requireBranch } from "@/services/branch-service";
 
-export async function listProjects(organisationId?: number): Promise<(Project & { branchName: string; organisationId: number })[]> {
+export async function listProjects(
+  organisationId?: number,
+): Promise<(Project & { branchName: string; organisationId: number })[]> {
   const db = await getDb();
   const rows = await db
     .select({
@@ -49,7 +51,10 @@ export async function getProjectOrganisationId(projectId: number): Promise<numbe
   return branch.organisationId;
 }
 
-export async function requireProjectInOrganisation(projectId: number, organisationId: number): Promise<Project> {
+export async function requireProjectInOrganisation(
+  projectId: number,
+  organisationId: number,
+): Promise<Project> {
   const project = await requireProject(projectId);
   const orgId = await getProjectOrganisationId(projectId);
   if (orgId !== organisationId) {
@@ -58,7 +63,11 @@ export async function requireProjectInOrganisation(projectId: number, organisati
   return project;
 }
 
-export async function requireProjectInBranch(projectId: number, branchId: number, organisationId: number): Promise<Project> {
+export async function requireProjectInBranch(
+  projectId: number,
+  branchId: number,
+  organisationId: number,
+): Promise<Project> {
   const project = await requireProjectInOrganisation(projectId, organisationId);
   if (project.branchId !== branchId) {
     throw new AppError("Project does not belong to the selected branch");
@@ -70,17 +79,15 @@ export async function createProject(input: unknown): Promise<Project> {
   const data = parseSchema(projectInputSchema, input);
   await requireBranch(data.branchId);
   const db = await getDb();
-  const [row] = await db
-    .insert(projects)
-    .values({
-      branchId: data.branchId,
-      name: data.name,
-      billable: data.billable,
-      startDate: data.startDate,
-      endDate: data.endDate ?? null,
-    })
-    .returning();
-  return row!;
+  const result = await db.insert(projects).values({
+    branchId: data.branchId,
+    name: data.name,
+    billable: data.billable,
+    startDate: data.startDate,
+    endDate: data.endDate ?? null,
+  });
+  const id = await insertIdFromResult(result);
+  return requireProject(id);
 }
 
 export async function updateProject(id: number, input: unknown): Promise<Project> {
@@ -88,7 +95,7 @@ export async function updateProject(id: number, input: unknown): Promise<Project
   const data = parseSchema(projectInputSchema, input);
   await requireBranch(data.branchId);
   const db = await getDb();
-  const [row] = await db
+  await db
     .update(projects)
     .set({
       branchId: data.branchId,
@@ -96,11 +103,10 @@ export async function updateProject(id: number, input: unknown): Promise<Project
       billable: data.billable,
       startDate: data.startDate,
       endDate: data.endDate ?? null,
-      updatedAt: new Date().toISOString().slice(0, 19).replace("T", " "),
+      updatedAt: nowSqlTimestamp(),
     })
-    .where(eq(projects.id, id))
-    .returning();
-  return row!;
+    .where(eq(projects.id, id));
+  return requireProject(id);
 }
 
 export async function deleteProject(id: number): Promise<void> {

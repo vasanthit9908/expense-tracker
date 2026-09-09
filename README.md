@@ -1,19 +1,29 @@
 # Organisation P&L
 
-Local full-stack app for organisation, branch, and project profit & loss. All data lives in a SQLite file. Each organisation has one reporting currency; expenses may be paid in another currency and are booked into the base currency using a user-supplied exchange rate.
+Full-stack app for organisation, branch, and project profit & loss. Data is stored in **MySQL** (connection from `DATABASE_URL` in `.env`). Each organisation has one reporting currency; expenses may be paid in another currency and are booked into the base currency using a user-supplied exchange rate.
 
 ## Stack
 
 - Next.js App Router + TypeScript
-- SQLite via Drizzle ORM and `@libsql/client` (`data/app.db`)
+- MySQL via Drizzle ORM and `mysql2`
 - shadcn/ui, Tailwind CSS, Recharts
-- Vitest for the calculation engine
+- Vitest for the calculation engine (hierarchy tests need MySQL)
 
 ## Prerequisites
 
-- Node.js 20 or later (Node 24 is fine)
+- Node.js 20 or later
+- A MySQL 8+ server and an empty database (e.g. `company_expenditure`)
 
 ## Setup
+
+1. Create a MySQL database.
+2. Copy `.env.example` to `.env` and set `DATABASE_URL`:
+
+```bash
+DATABASE_URL=mysql://USER:PASSWORD@HOST:3306/company_expenditure
+```
+
+3. Install and initialise:
 
 ```bash
 npm install
@@ -30,13 +40,13 @@ Open [http://localhost:3000](http://localhost:3000).
 | --- | --- |
 | `npm run dev` | Start the Next.js dev server |
 | `npm run build` / `npm start` | Production build and server |
-| `npm test` | Run financial calculation and validation tests |
-| `npm run db:migrate` | Create `data/app.db`, tables, indexes, and enable foreign keys |
+| `npm test` | Run tests (`DATABASE_URL` required for hierarchy tests) |
+| `npm run db:migrate` | Create tables and indexes on MySQL |
 | `npm run db:migrate -- --recreate` | Drop all tables and recreate schema (destructive) |
 | `npm run db:seed` | Load ABC Technologies sample data (skipped if already present) |
-| `npm run db:reset` | Delete DB files, recreate empty schema |
+| `npm run db:reset` | Drop and recreate empty schema |
 
-The database file is gitignored. Do not commit `*.db`.
+Do not commit `.env`.
 
 ## Seed scenario (September 2026)
 
@@ -71,5 +81,5 @@ The ER diagram source lives at [`src/db/schema.dbml`](src/db/schema.dbml). Paste
 When you change the database schema, update **all** of these together:
 
 1. [`src/db/schema.ts`](src/db/schema.ts) — Drizzle ORM
-2. [`src/db/sql.ts`](src/db/sql.ts) — SQLite DDL / init
+2. [`src/db/sql.ts`](src/db/sql.ts) — MySQL DDL / init
 3. [`src/db/schema.dbml`](src/db/schema.dbml) — dbdiagram.io diagram

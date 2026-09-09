@@ -6,7 +6,9 @@ import { createExpense } from "@/services/expense-service";
 import { createOrganisation } from "@/services/organisation-service";
 import { createProject } from "@/services/project-service";
 
-describe("hierarchy and relationship validation", () => {
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim());
+
+describe.skipIf(!hasDatabaseUrl)("hierarchy and relationship validation", () => {
   it("24. rejects allocating an expense to a project in another organisation", async () => {
     await withTestDatabase(async () => {
       const orgA = await createOrganisation({ name: "A", currency: "INR" });

@@ -1,15 +1,13 @@
-import fs from "node:fs";
-import { applySchema, createSqliteClient, getDbPath } from "./client";
+import "dotenv/config";
+import { applySchema, createMysqlPool, getDatabaseUrl } from "./client";
 
 async function main() {
   const recreate = process.argv.includes("--recreate");
-  const dbPath = getDbPath();
-  fs.mkdirSync(dbPath.replace(/[/\\][^/\\]+$/, ""), { recursive: true });
-  const url = `file:${dbPath.replace(/\\/g, "/")}`;
-  const client = createSqliteClient(url);
-  await applySchema(client, { recreate });
-  client.close();
-  console.log(`Database ready at ${dbPath}${recreate ? " (recreated)" : ""}`);
+  const url = getDatabaseUrl();
+  const pool = createMysqlPool(url);
+  await applySchema(pool, { recreate });
+  await pool.end();
+  console.log(`MySQL schema ready${recreate ? " (recreated)" : ""}`);
 }
 
 main().catch((error) => {

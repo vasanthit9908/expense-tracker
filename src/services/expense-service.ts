@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import Decimal from "decimal.js";
-import { getDb } from "@/db/client";
+import { getDb, insertIdFromResult, nowSqlTimestamp } from "@/db/client";
 import { expenseAllocations, expenses, type Expense, type ExpenseAllocation } from "@/db/schema";
 import { AppError } from "@/lib/errors";
 import {
@@ -73,30 +73,29 @@ export async function createExpense(input: unknown): Promise<Expense> {
   const { data, booked, amounts } = await resolveExpenseWrite(input);
   const db = await getDb();
   return db.transaction(async (tx) => {
-    const [expense] = await tx
-      .insert(expenses)
-      .values({
-        organisationId: data.organisationId,
-        branchId: data.scope === "branch" ? data.branchId! : null,
-        name: data.name,
-        currency: booked.currency,
-        originalAmount: Number(booked.originalAmountMinor),
-        exchangeRate: booked.exchangeRate,
-        amount: Number(booked.amountMinor),
-        expenseDate: data.expenseDate,
-      })
-      .returning();
+    const result = await tx.insert(expenses).values({
+      organisationId: data.organisationId,
+      branchId: data.scope === "branch" ? data.branchId! : null,
+      name: data.name,
+      currency: booked.currency,
+      originalAmount: Number(booked.originalAmountMinor),
+      exchangeRate: booked.exchangeRate,
+      amount: Number(booked.amountMinor),
+      expenseDate: data.expenseDate,
+    });
+    const expenseId = await insertIdFromResult(result);
     if (data.scope === "projects") {
       for (let index = 0; index < data.allocations.length; index += 1) {
         const allocation = data.allocations[index]!;
         await tx.insert(expenseAllocations).values({
-          expenseId: expense!.id,
+          expenseId,
           projectId: allocation.projectId,
           allocationPercentage: toStoredPercent(allocation.allocationPercentage),
           allocatedAmount: Number(amounts[index]!),
         });
       }
     }
+    const [expense] = await tx.select().from(expenses).where(eq(expenses.id, expenseId)).limit(1);
     return expense!;
   });
 }
@@ -106,7 +105,7 @@ export async function updateExpense(id: number, input: unknown): Promise<Expense
   const { data, booked, amounts } = await resolveExpenseWrite(input);
   const db = await getDb();
   return db.transaction(async (tx) => {
-    const [expense] = await tx
+    await tx
       .update(expenses)
       .set({
         organisationId: data.organisationId,
@@ -117,10 +116,9 @@ export async function updateExpense(id: number, input: unknown): Promise<Expense
         exchangeRate: booked.exchangeRate,
         amount: Number(booked.amountMinor),
         expenseDate: data.expenseDate,
-        updatedAt: new Date().toISOString().slice(0, 19).replace("T", " "),
+        updatedAt: nowSqlTimestamp(),
       })
-      .where(eq(expenses.id, id))
-      .returning();
+      .where(eq(expenses.id, id));
     await tx.delete(expenseAllocations).where(eq(expenseAllocations.expenseId, id));
     if (data.scope === "projects") {
       for (let index = 0; index < data.allocations.length; index += 1) {
@@ -133,6 +131,7 @@ export async function updateExpense(id: number, input: unknown): Promise<Expense
         });
       }
     }
+    const [expense] = await tx.select().from(expenses).where(eq(expenses.id, id)).limit(1);
     return expense!;
   });
 }
@@ -146,7 +145,10 @@ export async function deleteExpense(id: number): Promise<void> {
   });
 }
 
-export function expenseScope(expense: Expense, allocationCount: number): "organisation" | "branch" | "projects" {
+export function expenseScope(
+  expense: Expense,
+  allocationCount: number,
+): "organisation" | "branch" | "projects" {
   if (allocationCount > 0) {
     return "projects";
   }

@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { getDb } from "@/db/client";
+import { getDb, insertIdFromResult, nowSqlTimestamp } from "@/db/client";
 import { organisations, type Organisation } from "@/db/schema";
 import { AppError } from "@/lib/errors";
 import { organisationInputSchema, parseSchema } from "@/validations";
@@ -26,30 +26,27 @@ export async function requireOrganisation(id: number): Promise<Organisation> {
 export async function createOrganisation(input: unknown): Promise<Organisation> {
   const data = parseSchema(organisationInputSchema, input);
   const db = await getDb();
-  const [row] = await db
-    .insert(organisations)
-    .values({
-      name: data.name,
-      currency: data.currency,
-    })
-    .returning();
-  return row!;
+  const result = await db.insert(organisations).values({
+    name: data.name,
+    currency: data.currency,
+  });
+  const id = await insertIdFromResult(result);
+  return requireOrganisation(id);
 }
 
 export async function updateOrganisation(id: number, input: unknown): Promise<Organisation> {
   await requireOrganisation(id);
   const data = parseSchema(organisationInputSchema, input);
   const db = await getDb();
-  const [row] = await db
+  await db
     .update(organisations)
     .set({
       name: data.name,
       currency: data.currency,
-      updatedAt: new Date().toISOString().slice(0, 19).replace("T", " "),
+      updatedAt: nowSqlTimestamp(),
     })
-    .where(eq(organisations.id, id))
-    .returning();
-  return row!;
+    .where(eq(organisations.id, id));
+  return requireOrganisation(id);
 }
 
 export async function deleteOrganisation(id: number): Promise<void> {

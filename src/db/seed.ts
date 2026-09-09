@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { createAllocation, createEmployee } from "@/services/employee-service";
 import { createBranch } from "@/services/branch-service";
 import { createExpense } from "@/services/expense-service";

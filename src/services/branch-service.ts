@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { getDb } from "@/db/client";
+import { getDb, insertIdFromResult, nowSqlTimestamp } from "@/db/client";
 import { branches, type Branch } from "@/db/schema";
 import { AppError } from "@/lib/errors";
 import { branchInputSchema, parseSchema } from "@/validations";
@@ -39,15 +39,13 @@ export async function createBranch(input: unknown): Promise<Branch> {
   const data = parseSchema(branchInputSchema, input);
   await requireOrganisation(data.organisationId);
   const db = await getDb();
-  const [row] = await db
-    .insert(branches)
-    .values({
-      organisationId: data.organisationId,
-      name: data.name,
-      location: data.location,
-    })
-    .returning();
-  return row!;
+  const result = await db.insert(branches).values({
+    organisationId: data.organisationId,
+    name: data.name,
+    location: data.location,
+  });
+  const id = await insertIdFromResult(result);
+  return requireBranch(id);
 }
 
 export async function updateBranch(id: number, input: unknown): Promise<Branch> {
@@ -55,17 +53,16 @@ export async function updateBranch(id: number, input: unknown): Promise<Branch> 
   const data = parseSchema(branchInputSchema, input);
   await requireOrganisation(data.organisationId);
   const db = await getDb();
-  const [row] = await db
+  await db
     .update(branches)
     .set({
       organisationId: data.organisationId,
       name: data.name,
       location: data.location,
-      updatedAt: new Date().toISOString().slice(0, 19).replace("T", " "),
+      updatedAt: nowSqlTimestamp(),
     })
-    .where(eq(branches.id, id))
-    .returning();
-  return row!;
+    .where(eq(branches.id, id));
+  return requireBranch(id);
 }
 
 export async function deleteBranch(id: number): Promise<void> {

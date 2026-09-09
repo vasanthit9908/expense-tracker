@@ -1,87 +1,88 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   index,
-  integer,
-  sqliteTable,
+  int,
+  mysqlTable,
   text,
   uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+  varchar,
+  datetime,
+} from "drizzle-orm/mysql-core";
 
 const timestamps = {
-  createdAt: text("created_at")
+  createdAt: datetime("created_at", { mode: "string" })
     .notNull()
-    .default(sql`(datetime('now'))`),
-  updatedAt: text("updated_at")
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime("updated_at", { mode: "string" })
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(sql`CURRENT_TIMESTAMP`),
 };
 
-export const organisations = sqliteTable("organisations", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
-  currency: text("currency").notNull(),
+export const organisations = mysqlTable("organisations", {
+  id: int("id").primaryKey().autoincrement(),
+  name: varchar("name", { length: 255 }).notNull(),
+  currency: varchar("currency", { length: 3 }).notNull(),
   ...timestamps,
 });
 
-export const branches = sqliteTable(
+export const branches = mysqlTable(
   "branches",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    organisationId: integer("organisation_id")
+    id: int("id").primaryKey().autoincrement(),
+    organisationId: int("organisation_id")
       .notNull()
       .references(() => organisations.id, { onDelete: "restrict" }),
-    name: text("name").notNull(),
-    location: text("location").notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    location: varchar("location", { length: 255 }).notNull(),
     ...timestamps,
   },
-  (table) => [
-    index("idx_branches_organisation_id").on(table.organisationId),
-  ],
+  (table) => [index("idx_branches_organisation_id").on(table.organisationId)],
 );
 
-export const projects = sqliteTable(
+export const projects = mysqlTable(
   "projects",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    branchId: integer("branch_id")
+    id: int("id").primaryKey().autoincrement(),
+    branchId: int("branch_id")
       .notNull()
       .references(() => branches.id, { onDelete: "restrict" }),
-    name: text("name").notNull(),
-    billable: integer("billable", { mode: "boolean" }).notNull(),
-    startDate: text("start_date").notNull(),
-    endDate: text("end_date"),
+    name: varchar("name", { length: 255 }).notNull(),
+    billable: boolean("billable").notNull(),
+    startDate: varchar("start_date", { length: 10 }).notNull(),
+    endDate: varchar("end_date", { length: 10 }),
     ...timestamps,
   },
   (table) => [index("idx_projects_branch_id").on(table.branchId)],
 );
 
-export const employees = sqliteTable(
+export const employees = mysqlTable(
   "employees",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    organisationId: integer("organisation_id")
+    id: int("id").primaryKey().autoincrement(),
+    organisationId: int("organisation_id")
       .notNull()
       .references(() => organisations.id, { onDelete: "restrict" }),
-    name: text("name").notNull(),
-    ctc: integer("ctc").notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    ctc: int("ctc").notNull(),
     ...timestamps,
   },
   (table) => [index("idx_employees_organisation_id").on(table.organisationId)],
 );
 
-export const projectEmployees = sqliteTable(
+export const projectEmployees = mysqlTable(
   "project_employees",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    projectId: integer("project_id")
+    id: int("id").primaryKey().autoincrement(),
+    projectId: int("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "restrict" }),
-    employeeId: integer("employee_id")
+    employeeId: int("employee_id")
       .notNull()
       .references(() => employees.id, { onDelete: "restrict" }),
-    allocationPercentage: integer("allocation_percentage").notNull(),
-    effectiveFrom: text("effective_from").notNull(),
-    effectiveTo: text("effective_to"),
+    allocationPercentage: int("allocation_percentage").notNull(),
+    effectiveFrom: varchar("effective_from", { length: 10 }).notNull(),
+    effectiveTo: varchar("effective_to", { length: 10 }),
     ...timestamps,
   },
   (table) => [
@@ -92,22 +93,22 @@ export const projectEmployees = sqliteTable(
   ],
 );
 
-export const expenses = sqliteTable(
+export const expenses = mysqlTable(
   "expenses",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    organisationId: integer("organisation_id")
+    id: int("id").primaryKey().autoincrement(),
+    organisationId: int("organisation_id")
       .notNull()
       .references(() => organisations.id, { onDelete: "restrict" }),
-    branchId: integer("branch_id").references(() => branches.id, {
+    branchId: int("branch_id").references(() => branches.id, {
       onDelete: "restrict",
     }),
-    name: text("name").notNull(),
-    currency: text("currency").notNull(),
-    originalAmount: integer("original_amount").notNull(),
-    exchangeRate: text("exchange_rate").notNull(),
-    amount: integer("amount").notNull(),
-    expenseDate: text("expense_date").notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    currency: varchar("currency", { length: 3 }).notNull(),
+    originalAmount: int("original_amount").notNull(),
+    exchangeRate: varchar("exchange_rate", { length: 64 }).notNull(),
+    amount: int("amount").notNull(),
+    expenseDate: varchar("expense_date", { length: 10 }).notNull(),
     ...timestamps,
   },
   (table) => [
@@ -118,18 +119,18 @@ export const expenses = sqliteTable(
   ],
 );
 
-export const expenseAllocations = sqliteTable(
+export const expenseAllocations = mysqlTable(
   "expense_allocations",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    expenseId: integer("expense_id")
+    id: int("id").primaryKey().autoincrement(),
+    expenseId: int("expense_id")
       .notNull()
       .references(() => expenses.id, { onDelete: "cascade" }),
-    projectId: integer("project_id")
+    projectId: int("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "restrict" }),
-    allocationPercentage: integer("allocation_percentage").notNull(),
-    allocatedAmount: integer("allocated_amount").notNull(),
+    allocationPercentage: int("allocation_percentage").notNull(),
+    allocatedAmount: int("allocated_amount").notNull(),
     ...timestamps,
   },
   (table) => [
@@ -138,25 +139,25 @@ export const expenseAllocations = sqliteTable(
   ],
 );
 
-export const invoices = sqliteTable(
+export const invoices = mysqlTable(
   "invoices",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    invoiceNumber: text("invoice_number").notNull(),
-    organisationId: integer("organisation_id")
+    id: int("id").primaryKey().autoincrement(),
+    invoiceNumber: varchar("invoice_number", { length: 64 }).notNull(),
+    organisationId: int("organisation_id")
       .notNull()
       .references(() => organisations.id, { onDelete: "restrict" }),
-    branchId: integer("branch_id").references(() => branches.id, {
+    branchId: int("branch_id").references(() => branches.id, {
       onDelete: "restrict",
     }),
-    projectId: integer("project_id").references(() => projects.id, {
+    projectId: int("project_id").references(() => projects.id, {
       onDelete: "restrict",
     }),
     description: text("description").notNull(),
-    amount: integer("amount").notNull(),
-    invoiceDate: text("invoice_date").notNull(),
-    dueDate: text("due_date"),
-    status: text("status").notNull(),
+    amount: int("amount").notNull(),
+    invoiceDate: varchar("invoice_date", { length: 10 }).notNull(),
+    dueDate: varchar("due_date", { length: 10 }),
+    status: varchar("status", { length: 32 }).notNull(),
     ...timestamps,
   },
   (table) => [

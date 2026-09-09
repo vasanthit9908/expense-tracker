@@ -5,16 +5,16 @@
 // Open at: https://dbdiagram.io
 
 Project org_pnl {
-  database_type: 'SQLite'
-  Note: 'Local SQLite schema for organisation / branch / project P&L. Organisation.currency is the reporting/base currency. Expense.amount is always booked in that base currency; expense.currency + original_amount + exchange_rate capture the paid currency. Percentages are integer basis points (e.g. 5050 = 50.50%). Dates are ISO YYYY-MM-DD text.'
+  database_type: 'MySQL'
+  Note: 'MySQL schema for organisation / branch / project P&L. Organisation.currency is the reporting/base currency. Expense.amount is always booked in that base currency; expense.currency + original_amount + exchange_rate capture the paid currency. Percentages are integer basis points (e.g. 5050 = 50.50%). Business dates are ISO YYYY-MM-DD strings; created_at/updated_at are DATETIME.'
 }
 
 Table organisations {
   id integer [pk, increment, note: 'Primary key']
   name text [not null]
   currency text [not null, note: 'ISO 4217 three-letter code; default INR for new orgs']
-  created_at text [not null, default: `datetime('now')`]
-  updated_at text [not null, default: `datetime('now')`]
+  created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at datetime [not null, default: `CURRENT_TIMESTAMP`, note: 'ON UPDATE CURRENT_TIMESTAMP']
 
   Note: 'One base/reporting currency per organisation. No FX in V1.'
 }
@@ -24,8 +24,8 @@ Table branches {
   organisation_id integer [not null]
   name text [not null]
   location text [not null]
-  created_at text [not null, default: `datetime('now')`]
-  updated_at text [not null, default: `datetime('now')`]
+  created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at datetime [not null, default: `CURRENT_TIMESTAMP`, note: 'ON UPDATE CURRENT_TIMESTAMP']
 
   indexes {
     organisation_id [name: 'idx_branches_organisation_id']
@@ -41,8 +41,8 @@ Table projects {
   billable integer [not null, note: 'Boolean: 1 = billable, 0 = non-billable']
   start_date text [not null, note: 'ISO date YYYY-MM-DD']
   end_date text [note: 'Nullable; must not be before start_date']
-  created_at text [not null, default: `datetime('now')`]
-  updated_at text [not null, default: `datetime('now')`]
+  created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at datetime [not null, default: `CURRENT_TIMESTAMP`, note: 'ON UPDATE CURRENT_TIMESTAMP']
 
   indexes {
     branch_id [name: 'idx_projects_branch_id']
@@ -56,8 +56,8 @@ Table employees {
   organisation_id integer [not null]
   name text [not null]
   ctc integer [not null, note: 'Annual CTC in minor units (paise/cents)']
-  created_at text [not null, default: `datetime('now')`]
-  updated_at text [not null, default: `datetime('now')`]
+  created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at datetime [not null, default: `CURRENT_TIMESTAMP`, note: 'ON UPDATE CURRENT_TIMESTAMP']
 
   indexes {
     organisation_id [name: 'idx_employees_organisation_id']
@@ -73,8 +73,8 @@ Table project_employees {
   allocation_percentage integer [not null, note: 'Stored as percent * 100 (e.g. 5050 = 50.50%). Must be > 0 and <= 100.']
   effective_from text [not null, note: 'ISO date YYYY-MM-DD']
   effective_to text [note: 'Nullable open-ended; must not be before effective_from']
-  created_at text [not null, default: `datetime('now')`]
-  updated_at text [not null, default: `datetime('now')`]
+  created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at datetime [not null, default: `CURRENT_TIMESTAMP`, note: 'ON UPDATE CURRENT_TIMESTAMP']
 
   indexes {
     project_id [name: 'idx_project_employees_project_id']
@@ -96,8 +96,8 @@ Table expenses {
   exchange_rate text [not null, note: 'Base-currency units per 1 transaction-currency unit. Forced to 1 when currencies match.']
   amount integer [not null, note: 'Booked amount in organisation base currency = original_amount × exchange_rate. P&L always uses this.']
   expense_date text [not null, note: 'ISO date YYYY-MM-DD']
-  created_at text [not null, default: `datetime('now')`]
-  updated_at text [not null, default: `datetime('now')`]
+  created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at datetime [not null, default: `CURRENT_TIMESTAMP`, note: 'ON UPDATE CURRENT_TIMESTAMP']
 
   indexes {
     organisation_id [name: 'idx_expenses_organisation_id']
@@ -115,8 +115,8 @@ Table expense_allocations {
   project_id integer [not null]
   allocation_percentage integer [not null, note: 'Stored as percent * 100. Sum across an expense must equal 100%.']
   allocated_amount integer [not null, note: 'Server-computed minor units; users must not override. Sum must equal expense.amount.']
-  created_at text [not null, default: `datetime('now')`]
-  updated_at text [not null, default: `datetime('now')`]
+  created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at datetime [not null, default: `CURRENT_TIMESTAMP`, note: 'ON UPDATE CURRENT_TIMESTAMP']
 
   indexes {
     expense_id [name: 'idx_expense_allocations_expense_id']
@@ -137,8 +137,8 @@ Table invoices {
   invoice_date text [not null, note: 'ISO date; revenue recognition date for V1']
   due_date text [note: 'Nullable ISO date']
   status text [not null, note: 'DRAFT | ISSUED | PAID | PARTIALLY_PAID | OVERDUE | CANCELLED']
-  created_at text [not null, default: `datetime('now')`]
-  updated_at text [not null, default: `datetime('now')`]
+  created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at datetime [not null, default: `CURRENT_TIMESTAMP`, note: 'ON UPDATE CURRENT_TIMESTAMP']
 
   indexes {
     (organisation_id, invoice_number) [unique, name: 'idx_invoices_org_number']

@@ -1,5 +1,5 @@
 import { and, eq, gte, lte } from "drizzle-orm";
-import { getDb } from "@/db/client";
+import { getDb, insertIdFromResult, nowSqlTimestamp } from "@/db/client";
 import { invoices, type Invoice } from "@/db/schema";
 import { AppError } from "@/lib/errors";
 import { assertPositiveAmount, toMinorUnits } from "@/lib/money";
@@ -76,21 +76,18 @@ export async function createInvoice(input: unknown): Promise<Invoice> {
   if (existing.length > 0) {
     throw new AppError("Invoice number must be unique within the organisation");
   }
-  const [row] = await db
-    .insert(invoices)
-    .values({
-      invoiceNumber: data.invoiceNumber,
-      organisationId: data.organisationId,
-      branchId: data.branchId ?? null,
-      projectId: data.projectId ?? null,
-      description: data.description,
-      amount: Number(amount),
-      invoiceDate: data.invoiceDate,
-      dueDate: data.dueDate ?? null,
-      status: data.status,
-    })
-    .returning();
-  return row!;
+  const result = await db.insert(invoices).values({
+    invoiceNumber: data.invoiceNumber,
+    organisationId: data.organisationId,
+    branchId: data.branchId ?? null,
+    projectId: data.projectId ?? null,
+    description: data.description,
+    amount: Number(amount),
+    invoiceDate: data.invoiceDate,
+    dueDate: data.dueDate ?? null,
+    status: data.status,
+  });
+  return requireInvoice(await insertIdFromResult(result));
 }
 
 export async function updateInvoice(id: number, input: unknown): Promise<Invoice> {
@@ -109,7 +106,7 @@ export async function updateInvoice(id: number, input: unknown): Promise<Invoice
   if (existing.some((row) => row.id !== id)) {
     throw new AppError("Invoice number must be unique within the organisation");
   }
-  const [row] = await db
+  await db
     .update(invoices)
     .set({
       invoiceNumber: data.invoiceNumber,
@@ -121,11 +118,10 @@ export async function updateInvoice(id: number, input: unknown): Promise<Invoice
       invoiceDate: data.invoiceDate,
       dueDate: data.dueDate ?? null,
       status: data.status,
-      updatedAt: new Date().toISOString().slice(0, 19).replace("T", " "),
+      updatedAt: nowSqlTimestamp(),
     })
-    .where(eq(invoices.id, id))
-    .returning();
-  return row!;
+    .where(eq(invoices.id, id));
+  return requireInvoice(id);
 }
 
 export async function deleteInvoice(id: number): Promise<void> {
