@@ -3,6 +3,7 @@ import { deleteInvoiceAction } from "@/app/actions/invoices";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { InvoiceForm } from "@/components/forms/invoice-form";
 import { PageHeader } from "@/components/page-header";
+import { fromMinorUnits } from "@/lib/money";
 import { listBranches } from "@/services/branch-service";
 import { getInvoice } from "@/services/invoice-service";
 import { listOrganisations } from "@/services/organisation-service";
@@ -24,7 +25,20 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
         branches={branches}
         projects={projects}
         defaultOrganisationId={invoice.organisationId}
-        invoice={{ ...invoice, status: invoice.status as InvoiceStatus }}
+        invoice={{
+          id: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          organisationId: invoice.organisationId,
+          branchId: invoice.branchId,
+          projectId: invoice.projectId,
+          description: invoice.description,
+          currency: invoice.currency,
+          originalAmountMajor: fromMinorUnits(BigInt(invoice.originalAmount)).toString(),
+          exchangeRate: invoice.exchangeRate,
+          invoiceDate: invoice.invoiceDate,
+          dueDate: invoice.dueDate,
+          status: invoice.status as InvoiceStatus,
+        }}
       />
       <ConfirmDelete
         title="Delete invoice?"

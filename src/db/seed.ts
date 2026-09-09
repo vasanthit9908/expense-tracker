@@ -201,7 +201,9 @@ async function main() {
     branchId: hyderabad.id,
     projectId: alpha.id,
     description: "Project Alpha September billing",
-    amountMajor: "9600",
+    currency: "USD",
+    originalAmountMajor: "9600",
+    exchangeRate: "1",
     invoiceDate: "2026-09-15",
     dueDate: "2026-09-30",
     status: "PAID",
@@ -212,7 +214,9 @@ async function main() {
     branchId: bangalore.id,
     projectId: beta.id,
     description: "Project Beta September billing",
-    amountMajor: "6000",
+    currency: "USD",
+    originalAmountMajor: "6000",
+    exchangeRate: "1",
     invoiceDate: "2026-09-18",
     dueDate: "2026-10-02",
     status: "ISSUED",
@@ -222,8 +226,10 @@ async function main() {
     organisationId: org.id,
     branchId: hyderabad.id,
     projectId: null,
-    description: "Hyderabad training services",
-    amountMajor: "600",
+    description: "Hyderabad training services (INR)",
+    currency: "INR",
+    originalAmountMajor: "50000",
+    exchangeRate: "0.012",
     invoiceDate: "2026-09-08",
     status: "PAID",
   });
@@ -233,7 +239,9 @@ async function main() {
     branchId: null,
     projectId: null,
     description: "Organisation consulting retainer",
-    amountMajor: "1200",
+    currency: "USD",
+    originalAmountMajor: "1200",
+    exchangeRate: "1",
     invoiceDate: "2026-09-20",
     status: "PAID",
   });
@@ -243,13 +251,15 @@ async function main() {
     branchId: hyderabad.id,
     projectId: alpha.id,
     description: "Cancelled Alpha change request",
-    amountMajor: "2400",
+    currency: "USD",
+    originalAmountMajor: "2400",
+    exchangeRate: "1",
     invoiceDate: "2026-09-22",
     status: "CANCELLED",
   });
 
   console.log(
-    "Seeded ABC Technologies (USD) with INR electricity bills and a USD Cursor subscription.",
+    "Seeded ABC Technologies (USD) with mixed-currency expenses and invoices.",
   );
 }
 

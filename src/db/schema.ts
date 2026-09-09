@@ -154,6 +154,9 @@ export const invoices = mysqlTable(
       onDelete: "restrict",
     }),
     description: text("description").notNull(),
+    currency: varchar("currency", { length: 3 }).notNull(),
+    originalAmount: int("original_amount").notNull(),
+    exchangeRate: varchar("exchange_rate", { length: 64 }).notNull(),
     amount: int("amount").notNull(),
     invoiceDate: varchar("invoice_date", { length: 10 }).notNull(),
     dueDate: varchar("due_date", { length: 10 }),
@@ -170,6 +173,7 @@ export const invoices = mysqlTable(
     index("idx_invoices_project_id").on(table.projectId),
     index("idx_invoices_invoice_date").on(table.invoiceDate),
     index("idx_invoices_status").on(table.status),
+    index("idx_invoices_currency").on(table.currency),
   ],
 );
 

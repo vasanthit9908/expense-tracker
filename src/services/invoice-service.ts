@@ -2,7 +2,7 @@ import { and, eq, gte, lte } from "drizzle-orm";
 import { getDb, insertIdFromResult, nowSqlTimestamp } from "@/db/client";
 import { invoices, type Invoice } from "@/db/schema";
 import { AppError } from "@/lib/errors";
-import { assertPositiveAmount, toMinorUnits } from "@/lib/money";
+import { normalizeCurrencyBooking } from "@/lib/money";
 import { invoiceInputSchema, parseSchema } from "@/validations";
 import { requireBranchInOrganisation } from "@/services/branch-service";
 import { requireOrganisation } from "@/services/organisation-service";
@@ -60,11 +60,21 @@ async function assertInvoiceHierarchy(data: {
   }
 }
 
-export async function createInvoice(input: unknown): Promise<Invoice> {
+async function resolveInvoiceWrite(input: unknown) {
   const data = parseSchema(invoiceInputSchema, input);
   await assertInvoiceHierarchy(data);
-  const amount = toMinorUnits(data.amountMajor);
-  assertPositiveAmount(amount, "Amount");
+  const organisation = await requireOrganisation(data.organisationId);
+  const booked = normalizeCurrencyBooking({
+    transactionCurrency: data.currency,
+    baseCurrency: organisation.currency,
+    originalMajor: data.originalAmountMajor,
+    exchangeRate: data.exchangeRate,
+  });
+  return { data, booked };
+}
+
+export async function createInvoice(input: unknown): Promise<Invoice> {
+  const { data, booked } = await resolveInvoiceWrite(input);
   const db = await getDb();
   const existing = await db
     .select()
@@ -82,7 +92,10 @@ export async function createInvoice(input: unknown): Promise<Invoice> {
     branchId: data.branchId ?? null,
     projectId: data.projectId ?? null,
     description: data.description,
-    amount: Number(amount),
+    currency: booked.currency,
+    originalAmount: Number(booked.originalAmountMinor),
+    exchangeRate: booked.exchangeRate,
+    amount: Number(booked.amountMinor),
     invoiceDate: data.invoiceDate,
     dueDate: data.dueDate ?? null,
     status: data.status,
@@ -92,10 +105,7 @@ export async function createInvoice(input: unknown): Promise<Invoice> {
 
 export async function updateInvoice(id: number, input: unknown): Promise<Invoice> {
   await requireInvoice(id);
-  const data = parseSchema(invoiceInputSchema, input);
-  await assertInvoiceHierarchy(data);
-  const amount = toMinorUnits(data.amountMajor);
-  assertPositiveAmount(amount, "Amount");
+  const { data, booked } = await resolveInvoiceWrite(input);
   const db = await getDb();
   const existing = await db
     .select()
@@ -114,7 +124,10 @@ export async function updateInvoice(id: number, input: unknown): Promise<Invoice
       branchId: data.branchId ?? null,
       projectId: data.projectId ?? null,
       description: data.description,
-      amount: Number(amount),
+      currency: booked.currency,
+      originalAmount: Number(booked.originalAmountMinor),
+      exchangeRate: booked.exchangeRate,
+      amount: Number(booked.amountMinor),
       invoiceDate: data.invoiceDate,
       dueDate: data.dueDate ?? null,
       status: data.status,

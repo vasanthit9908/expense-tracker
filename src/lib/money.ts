@@ -118,7 +118,7 @@ export function bookToBaseCurrency(
   return roundToMinor(new Decimal(originalMinor.toString()).mul(rate));
 }
 
-export function normalizeExpenseFx(input: {
+export function normalizeCurrencyBooking(input: {
   transactionCurrency: string;
   baseCurrency: string;
   originalMajor: string | number | Decimal;
@@ -145,7 +145,7 @@ export function normalizeExpenseFx(input: {
 
   if (input.exchangeRate == null || String(input.exchangeRate).trim() === "") {
     throw new MoneyError(
-      `Exchange rate is required when expense currency (${currency}) differs from organisation currency (${base})`,
+      `Exchange rate is required when currency (${currency}) differs from organisation currency (${base})`,
     );
   }
 
@@ -157,3 +157,6 @@ export function normalizeExpenseFx(input: {
     amountMinor: bookToBaseCurrency(originalAmountMinor, rate),
   };
 }
+
+/** @deprecated Use normalizeCurrencyBooking */
+export const normalizeExpenseFx = normalizeCurrencyBooking;

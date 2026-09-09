@@ -6,7 +6,7 @@
 
 Project org_pnl {
   database_type: 'MySQL'
-  Note: 'MySQL schema for organisation / branch / project P&L. Organisation.currency is the reporting/base currency. Expense.amount is always booked in that base currency; expense.currency + original_amount + exchange_rate capture the paid currency. Percentages are integer basis points (e.g. 5050 = 50.50%). Business dates are ISO YYYY-MM-DD strings; created_at/updated_at are DATETIME.'
+  Note: 'MySQL schema for organisation / branch / project P&L. Organisation.currency is the reporting/base currency. Expense.amount and Invoice.amount are always booked in that base currency; currency + original_amount + exchange_rate capture the paid/billed currency. Percentages are integer basis points (e.g. 5050 = 50.50%). Business dates are ISO YYYY-MM-DD strings; created_at/updated_at are DATETIME.'
 }
 
 Table organisations {
@@ -133,7 +133,10 @@ Table invoices {
   branch_id integer [note: 'Null for organisation-level invoice']
   project_id integer [note: 'Requires branch_id; project must belong to that branch']
   description text [not null]
-  amount integer [not null, note: 'Amount in minor units']
+  currency text [not null, note: 'Invoice / billed currency (ISO 4217). May differ from organisation.currency.']
+  original_amount integer [not null, note: 'Amount billed in invoice currency (minor units)']
+  exchange_rate text [not null, note: 'Base-currency units per 1 invoice-currency unit. Forced to 1 when currencies match.']
+  amount integer [not null, note: 'Booked amount in organisation base currency = original_amount × exchange_rate. P&L revenue uses this.']
   invoice_date text [not null, note: 'ISO date; revenue recognition date for V1']
   due_date text [note: 'Nullable ISO date']
   status text [not null, note: 'DRAFT | ISSUED | PAID | PARTIALLY_PAID | OVERDUE | CANCELLED']
@@ -147,9 +150,10 @@ Table invoices {
     project_id [name: 'idx_invoices_project_id']
     invoice_date [name: 'idx_invoices_invoice_date']
     status [name: 'idx_invoices_status']
+    currency [name: 'idx_invoices_currency']
   }
 
-  Note: 'Hierarchy: org invoice (branch/project null), branch invoice (branch set, project null), project invoice (branch + project set). CANCELLED invoices do not count as revenue.'
+  Note: 'Hierarchy: org invoice (branch/project null), branch invoice (branch set, project null), project invoice (branch + project set). CANCELLED invoices do not count as revenue. Foreign-currency invoices require exchange_rate; P&L uses booked amount only.'
 }
 
 Ref: branches.organisation_id > organisations.id [delete: restrict]

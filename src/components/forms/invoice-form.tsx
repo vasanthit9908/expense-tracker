@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createInvoiceAction, updateInvoiceAction } from "@/app/actions/invoices";
@@ -9,7 +9,8 @@ import { NativeSelect } from "@/components/native-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { fromMinorUnits } from "@/lib/money";
+import { SUPPORTED_CURRENCIES, formatMoney } from "@/lib/currency";
+import { bookToBaseCurrency, toMinorUnits } from "@/lib/money";
 import { INVOICE_STATUSES, type InvoiceStatus } from "@/types";
 
 export function InvoiceForm({
@@ -19,7 +20,7 @@ export function InvoiceForm({
   defaultOrganisationId,
   invoice,
 }: {
-  organisations: { id: number; name: string }[];
+  organisations: { id: number; name: string; currency: string }[];
   branches: { id: number; name: string; organisationId: number }[];
   projects: { id: number; name: string; branchId: number; organisationId: number }[];
   defaultOrganisationId: number | null;
@@ -30,7 +31,9 @@ export function InvoiceForm({
     branchId: number | null;
     projectId: number | null;
     description: string;
-    amount: number;
+    currency: string;
+    originalAmountMajor: string;
+    exchangeRate: string;
     invoiceDate: string;
     dueDate: string | null;
     status: InvoiceStatus;
@@ -41,13 +44,19 @@ export function InvoiceForm({
   const [organisationId, setOrganisationId] = useState(
     invoice?.organisationId ?? defaultOrganisationId ?? organisations[0]?.id ?? 0,
   );
+  const baseCurrency =
+    organisations.find((org) => org.id === organisationId)?.currency ??
+    organisations[0]?.currency ??
+    "USD";
   const [branchId, setBranchId] = useState(invoice?.branchId ? String(invoice.branchId) : "");
   const [projectId, setProjectId] = useState(invoice?.projectId ? String(invoice.projectId) : "");
   const [invoiceNumber, setInvoiceNumber] = useState(invoice?.invoiceNumber ?? "");
   const [description, setDescription] = useState(invoice?.description ?? "");
-  const [amountMajor, setAmountMajor] = useState(
-    invoice ? fromMinorUnits(BigInt(invoice.amount)).toString() : "",
+  const [txnCurrency, setTxnCurrency] = useState(invoice?.currency ?? baseCurrency);
+  const [originalAmountMajor, setOriginalAmountMajor] = useState(
+    invoice?.originalAmountMajor ?? "",
   );
+  const [exchangeRate, setExchangeRate] = useState(invoice?.exchangeRate ?? "1");
   const [invoiceDate, setInvoiceDate] = useState(invoice?.invoiceDate ?? "");
   const [dueDate, setDueDate] = useState(invoice?.dueDate ?? "");
   const [status, setStatus] = useState<InvoiceStatus>(invoice?.status ?? "DRAFT");
@@ -58,9 +67,24 @@ export function InvoiceForm({
     if (branchId && project.branchId !== Number(branchId)) return false;
     return true;
   });
+  const needsRate = txnCurrency.toUpperCase() !== baseCurrency.toUpperCase();
+
+  const bookedMinor = useMemo(() => {
+    try {
+      const original = toMinorUnits(originalAmountMajor || "0");
+      if (!needsRate) return original;
+      return bookToBaseCurrency(original, exchangeRate || "0");
+    } catch {
+      return 0n;
+    }
+  }, [originalAmountMajor, exchangeRate, needsRate]);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (needsRate && (!exchangeRate || Number(exchangeRate) <= 0)) {
+      toast.error("Enter a positive exchange rate to book into the organisation currency");
+      return;
+    }
     setPending(true);
     const payload = {
       invoiceNumber,
@@ -68,7 +92,9 @@ export function InvoiceForm({
       branchId: branchId ? Number(branchId) : null,
       projectId: projectId ? Number(projectId) : null,
       description,
-      amountMajor,
+      currency: txnCurrency,
+      originalAmountMajor,
+      exchangeRate: needsRate ? exchangeRate : "1",
       invoiceDate,
       dueDate: dueDate || null,
       status,
@@ -105,14 +131,21 @@ export function InvoiceForm({
           <NativeSelect
             value={organisationId}
             onChange={(event) => {
-              setOrganisationId(Number(event.target.value));
+              const nextId = Number(event.target.value);
+              setOrganisationId(nextId);
               setBranchId("");
               setProjectId("");
+              const nextBase =
+                organisations.find((org) => org.id === nextId)?.currency ?? baseCurrency;
+              if (txnCurrency === baseCurrency) {
+                setTxnCurrency(nextBase);
+                setExchangeRate("1");
+              }
             }}
           >
             {organisations.map((org) => (
               <option key={org.id} value={org.id}>
-                {org.name}
+                {org.name} ({org.currency})
               </option>
             ))}
           </NativeSelect>
@@ -143,9 +176,52 @@ export function InvoiceForm({
             ))}
           </NativeSelect>
         </Field>
-        <Field label="Amount">
-          <Input value={amountMajor} onChange={(event) => setAmountMajor(event.target.value)} required />
+        <Field label="Invoice currency">
+          <NativeSelect
+            value={txnCurrency}
+            onChange={(event) => {
+              const next = event.target.value;
+              setTxnCurrency(next);
+              if (next.toUpperCase() === baseCurrency.toUpperCase()) {
+                setExchangeRate("1");
+              }
+            }}
+            required
+          >
+            {SUPPORTED_CURRENCIES.map((code) => (
+              <option key={code} value={code}>
+                {code}
+              </option>
+            ))}
+          </NativeSelect>
         </Field>
+        <Field label={`Amount (${txnCurrency})`}>
+          <Input
+            value={originalAmountMajor}
+            onChange={(event) => setOriginalAmountMajor(event.target.value)}
+            required
+          />
+        </Field>
+        {needsRate ? (
+          <Field
+            label={`Exchange rate (${baseCurrency} per 1 ${txnCurrency})`}
+            className="sm:col-span-2"
+          >
+            <Input
+              value={exchangeRate}
+              onChange={(event) => setExchangeRate(event.target.value)}
+              placeholder="e.g. 0.012"
+              required
+            />
+            <span className="text-xs font-normal text-muted-foreground">
+              Booked revenue (P&amp;L): {formatMoney(bookedMinor, baseCurrency)}
+            </span>
+          </Field>
+        ) : (
+          <Field label={`Booked amount (${baseCurrency})`}>
+            <Input value={formatMoney(bookedMinor, baseCurrency)} disabled />
+          </Field>
+        )}
         <Field label="Invoice date">
           <Input type="date" value={invoiceDate} onChange={(event) => setInvoiceDate(event.target.value)} required />
         </Field>

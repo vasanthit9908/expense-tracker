@@ -28,6 +28,7 @@ export default async function InvoicesPage({
   const params = await searchParams;
   const orgId = await getSelectedOrganisationId();
   const organisation = orgId ? await getOrganisation(orgId) : undefined;
+  const baseCurrency = organisation?.currency ?? "USD";
   const branches = await listBranches(orgId ?? undefined);
   const projects = await listProjects(orgId ?? undefined);
   const invoices = (
@@ -48,7 +49,7 @@ export default async function InvoicesPage({
     <div>
       <PageHeader
         title="Invoices"
-        description="Revenue is recognised on invoice date. Cancelled invoices are excluded from P&L."
+        description="Enter invoice currency and amount. Foreign-currency invoices are booked into the organisation currency for revenue. Cancelled invoices are excluded from P&L."
         actionHref="/invoices/new"
         actionLabel="New invoice"
       />
@@ -63,7 +64,8 @@ export default async function InvoicesPage({
               <TableHead>Number</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Amount</TableHead>
+              <TableHead>Invoiced</TableHead>
+              <TableHead>Booked ({baseCurrency})</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
@@ -78,7 +80,17 @@ export default async function InvoicesPage({
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <MoneyText minor={invoice.amount} currency={organisation?.currency ?? "INR"} />
+                  <div className="flex flex-col gap-0.5">
+                    <MoneyText minor={invoice.originalAmount} currency={invoice.currency} />
+                    {invoice.currency !== baseCurrency ? (
+                      <span className="text-xs text-muted-foreground">
+                        @ {invoice.exchangeRate} → {baseCurrency}
+                      </span>
+                    ) : null}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <MoneyText minor={invoice.amount} currency={baseCurrency} />
                 </TableCell>
                 <TableCell className="text-right">
                   <Link href={`/invoices/${invoice.id}`} className={cn(buttonVariants({ variant: "outline" }))}>

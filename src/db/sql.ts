@@ -122,6 +122,9 @@ CREATE TABLE IF NOT EXISTS invoices (
   branch_id INT NULL,
   project_id INT NULL,
   description TEXT NOT NULL,
+  currency VARCHAR(3) NOT NULL,
+  original_amount INT NOT NULL,
+  exchange_rate VARCHAR(64) NOT NULL,
   amount INT NOT NULL,
   invoice_date VARCHAR(10) NOT NULL,
   due_date VARCHAR(10) NULL,
@@ -139,6 +142,7 @@ CREATE TABLE IF NOT EXISTS invoices (
   INDEX idx_invoices_branch_id (branch_id),
   INDEX idx_invoices_project_id (project_id),
   INDEX idx_invoices_invoice_date (invoice_date),
-  INDEX idx_invoices_status (status)
+  INDEX idx_invoices_status (status),
+  INDEX idx_invoices_currency (currency)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `;

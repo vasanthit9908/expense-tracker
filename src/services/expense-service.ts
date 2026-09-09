@@ -7,7 +7,7 @@ import {
   allocateByPercentages,
   assertPercentSum100,
   fromStoredPercent,
-  normalizeExpenseFx,
+  normalizeCurrencyBooking,
   toStoredPercent,
 } from "@/lib/money";
 import { expenseInputSchema, parseSchema } from "@/validations";
@@ -49,7 +49,7 @@ export async function listExpenseAllocations(expenseId: number): Promise<Expense
 async function resolveExpenseWrite(input: unknown) {
   const data = parseSchema(expenseInputSchema, input);
   const organisation = await requireOrganisation(data.organisationId);
-  const booked = normalizeExpenseFx({
+  const booked = normalizeCurrencyBooking({
     transactionCurrency: data.currency,
     baseCurrency: organisation.currency,
     originalMajor: data.originalAmountMajor,

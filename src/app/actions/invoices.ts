@@ -10,7 +10,9 @@ type InvoicePayload = {
   branchId?: number | null;
   projectId?: number | null;
   description: string;
-  amountMajor: string;
+  currency: string;
+  originalAmountMajor: string;
+  exchangeRate?: string | null;
   invoiceDate: string;
   dueDate?: string | null;
   status: InvoiceStatus;

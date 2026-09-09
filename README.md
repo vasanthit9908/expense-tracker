@@ -1,6 +1,6 @@
 # Organisation P&L
 
-Full-stack app for organisation, branch, and project profit & loss. Data is stored in **MySQL** (connection from `DATABASE_URL` in `.env`). Each organisation has one reporting currency; expenses may be paid in another currency and are booked into the base currency using a user-supplied exchange rate.
+Full-stack app for organisation, branch, and project profit & loss. Data is stored in **MySQL** (connection from `DATABASE_URL` in `.env`). Each organisation has one reporting currency; expenses and invoices may use another currency and are booked into the base currency using a user-supplied exchange rate.
 
 ## Stack
 
@@ -55,14 +55,14 @@ Do not commit `.env`.
 - Projects: Alpha (billable), Beta (billable), Internal Operations (non-billable)
 - Employees: Ravi (50% Alpha / 30% Beta), Priya (60% Alpha / 20% Internal), John (70% Beta)
 - Expenses mix USD costs (insurance, AWS, Cursor Pro) with **INR** branch bills booked via an exchange rate (e.g. electricity ₹83,000 @ 0.012 → $996)
-- Invoices include paid, issued, and cancelled documents so you can confirm cancelled revenue is excluded
+- Invoices include USD project billing plus an **INR** branch invoice booked to USD; cancelled documents are excluded from revenue
 
 Use the dashboard period preset **Current month** while the system date is in September 2026, or pick a custom range of `2026-09-01` to `2026-09-30`.
 
 ## V1 behaviour
 
 - One **reporting/base currency** per organisation. P&L is always in that currency.
-- Expenses may be paid in another currency: store paid currency + original amount + exchange rate; book `amount` into the org currency for P&L.
+- Expenses and invoices may use another currency: store paid/billed currency + original amount + exchange rate; book `amount` into the org currency for P&L.
 - Exchange rate meaning: **base-currency units per 1 unit of paid currency** (e.g. INR→USD rate `0.012`).
 - Employees have no hire/leave dates; CTC is applied for the whole reporting period (in the org currency).
 - Unallocated employee cost (CTC not assigned to projects) is an organisation cost.
