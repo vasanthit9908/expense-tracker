@@ -1,12 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Building2,
   FileText,
   FolderKanban,
-  GitBranch,
   Landmark,
   LayoutDashboard,
   Receipt,
@@ -37,12 +37,17 @@ export function AppSidebar({
   const pathname = usePathname();
   return (
     <aside className="flex w-full flex-col border-b bg-sidebar text-sidebar-foreground md:h-screen md:w-60 md:border-r md:border-b-0">
-      <div className="flex items-center gap-2 px-4 py-4">
-        <GitBranch className="size-5" />
-        <div>
-          <p className="text-sm font-semibold">Org P&L</p>
-          <p className="text-xs text-muted-foreground">Profitability</p>
-        </div>
+      <div className="px-3 py-4">
+        <Link href="/" className="block rounded-lg bg-black p-2">
+          <Image
+            src="/eficenspnglogo.png"
+            alt="eficens"
+            width={360}
+            height={120}
+            className="h-10 w-auto object-contain"
+            priority
+          />
+        </Link>
       </div>
       <div className="px-3 pb-3">
         <OrgSwitcher organisations={organisations} selectedId={selectedOrgId} />

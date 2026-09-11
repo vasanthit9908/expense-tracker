@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 export function ProjectForm({
   branches,
   project,
+  redirectTo = "/projects",
+  onCancel,
 }: {
   branches: { id: number; name: string; organisationId: number }[];
   project?: {
@@ -22,6 +24,8 @@ export function ProjectForm({
     startDate: string;
     endDate: string | null;
   };
+  redirectTo?: string;
+  onCancel?: () => void;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -48,7 +52,7 @@ export function ProjectForm({
       return;
     }
     toast.success(project ? "Project updated" : "Project created");
-    router.push("/projects");
+    router.push(redirectTo);
     router.refresh();
   }
 
@@ -83,9 +87,16 @@ export function ProjectForm({
           <Input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
         </Field>
       </FormGrid>
-      <Button type="submit" disabled={pending}>
-        {pending ? "Saving..." : "Save"}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" disabled={pending}>
+          {pending ? "Saving..." : "Save"}
+        </Button>
+        {onCancel ? (
+          <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
+            Cancel
+          </Button>
+        ) : null}
+      </div>
     </form>
   );
 }

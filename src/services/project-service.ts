@@ -1,13 +1,20 @@
 import { eq } from "drizzle-orm";
 import { getDb, insertIdFromResult, nowSqlTimestamp } from "@/db/client";
-import { branches, projects, type Project } from "@/db/schema";
+import { branches, projectEmployees, projects, type Project } from "@/db/schema";
+import { toIsoDate } from "@/lib/dates";
 import { AppError } from "@/lib/errors";
 import { parseSchema, projectInputSchema } from "@/validations";
 import { requireBranch } from "@/services/branch-service";
 
+export type ProjectListItem = Project & {
+  branchName: string;
+  organisationId: number;
+  activeEmployeeCount: number;
+};
+
 export async function listProjects(
   organisationId?: number,
-): Promise<(Project & { branchName: string; organisationId: number })[]> {
+): Promise<ProjectListItem[]> {
   const db = await getDb();
   const rows = await db
     .select({
@@ -25,10 +32,28 @@ export async function listProjects(
     .from(projects)
     .innerJoin(branches, eq(projects.branchId, branches.id))
     .orderBy(projects.name);
-  if (organisationId) {
-    return rows.filter((row) => row.organisationId === organisationId);
+  const filtered = organisationId
+    ? rows.filter((row) => row.organisationId === organisationId)
+    : rows;
+
+  const today = toIsoDate(new Date());
+  const allocations = await db.select().from(projectEmployees);
+  const activeByProject = new Map<number, Set<number>>();
+  for (const row of allocations) {
+    if (row.effectiveFrom > today) continue;
+    if (row.effectiveTo && row.effectiveTo < today) continue;
+    let employees = activeByProject.get(row.projectId);
+    if (!employees) {
+      employees = new Set();
+      activeByProject.set(row.projectId, employees);
+    }
+    employees.add(row.employeeId);
   }
-  return rows;
+
+  return filtered.map((row) => ({
+    ...row,
+    activeEmployeeCount: activeByProject.get(row.id)?.size ?? 0,
+  }));
 }
 
 export async function getProject(id: number): Promise<Project | undefined> {
