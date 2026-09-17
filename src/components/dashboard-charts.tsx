@@ -45,15 +45,20 @@ export function DashboardCharts({
       <div className="h-80 rounded-xl border p-4">
         <h3 className="mb-2 font-medium">Project profitability</h3>
         <ResponsiveContainer width="100%" height="90%">
-          <BarChart data={projectProfit}>
+          <BarChart data={projectProfit} margin={{ top: 8, right: 12, left: 12, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="name" hide />
-            <YAxis />
+            <YAxis
+              width={56}
+              tick={{ fontSize: 11, fill: "#374151" }}
+              axisLine={{ stroke: "#d1d5db" }}
+              tickLine={{ stroke: "#d1d5db" }}
+            />
             <Tooltip formatter={(value) => formatMoney(BigInt(Math.round(Number(value))), currency)} />
             <Legend />
-            <Bar dataKey="revenue" fill="#1d4ed8" name="Revenue" />
-            <Bar dataKey="cost" fill="#b45309" name="Cost" />
-            <Bar dataKey="profit" fill="#0f766e" name="Profit" />
+            <Bar dataKey="revenue" fill="#1d4ed8" name="Revenue" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="cost" fill="#b45309" name="Cost" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="profit" fill="#0f766e" name="Profit" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -23,7 +23,7 @@ export function OrgSwitcher({
         await selectOrganisationAction(id);
         router.refresh();
       }}
-      className="bg-background"
+      className="bg-white text-black"
     >
       {organisations.map((org) => (
         <option key={org.id} value={org.id}>
