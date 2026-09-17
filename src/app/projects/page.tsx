@@ -3,6 +3,7 @@ import { EmptyState, PageHeader } from "@/components/page-header";
 import { SearchBox } from "@/components/search-box";
 import { Badge } from "@/components/ui/badge";
 import { getSelectedOrganisationId } from "@/lib/context";
+import { formatDisplayDate } from "@/lib/dates";
 import { listProjects } from "@/services/project-service";
 
 export default async function ProjectsPage({
@@ -28,7 +29,7 @@ export default async function ProjectsPage({
       {projects.length === 0 ? (
         <EmptyState title="No projects" />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (
             <Link
               key={project.id}
@@ -46,7 +47,7 @@ export default async function ProjectsPage({
               <dl className="mt-5 grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <dt className="text-muted-foreground">Start date</dt>
-                  <dd className="mt-0.5 font-medium">{project.startDate}</dd>
+                  <dd className="mt-0.5 font-medium">{formatDisplayDate(project.startDate)}</dd>
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Active team</dt>

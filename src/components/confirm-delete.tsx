@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,12 +24,14 @@ export function ConfirmDelete({
   action,
   id,
   redirectTo,
+  iconTrigger = false,
 }: {
   title: string;
   description: string;
   action: (id: number) => Promise<ActionResult<unknown>>;
   id: number;
   redirectTo?: string;
+  iconTrigger?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -36,7 +39,15 @@ export function ConfirmDelete({
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger render={<Button variant="destructive" />}>Delete</AlertDialogTrigger>
+      {iconTrigger ? (
+        <AlertDialogTrigger
+          render={<Button variant="ghost" size="icon-sm" aria-label={title} className="text-muted-foreground hover:text-destructive" />}
+        >
+          <Trash2 className="size-4" />
+        </AlertDialogTrigger>
+      ) : (
+        <AlertDialogTrigger render={<Button variant="destructive" />}>Delete</AlertDialogTrigger>
+      )}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>

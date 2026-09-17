@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { getSelectedOrganisationId, periodFromSearchParams } from "@/lib/context";
 import { formatPercent } from "@/lib/currency";
+import { formatDisplayDate } from "@/lib/dates";
 import { getOrganisation } from "@/services/organisation-service";
 import { getOrganisationPnl } from "@/services/pnl-service";
 
@@ -38,45 +39,47 @@ export default async function DashboardPage({
     return <EmptyState title="Selected organisation was not found" />;
   }
   const pnl = await getOrganisationPnl(orgId, period);
-  const cards = [
+  const cards: { label: string; value?: bigint; signed?: boolean; text?: string }[] = [
     { label: "Total Revenue", value: pnl.totalRevenueMinor },
     { label: "Total Costs", value: pnl.totalCostMinor },
     { label: "Total Profit", value: pnl.profitMinor, signed: true },
+    { label: "Profit Margin", text: pnl.marginPercent == null ? "n/a" : formatPercent(pnl.marginPercent) },
+    { label: "Billable Revenue", value: pnl.billableRevenueMinor },
+    { label: "Non-billable Costs", value: pnl.nonBillableCostMinor },
     { label: "Employee Costs", value: pnl.totalEmployeeCostMinor },
     { label: "Unallocated Employee Cost", value: pnl.unallocatedEmployeeCostMinor },
     { label: "Project Expenses", value: pnl.projectExpenseCostMinor },
     { label: "Branch Expenses", value: pnl.branchExpenseCostMinor },
     { label: "Organisation Expenses", value: pnl.organisationExpenseCostMinor },
-    { label: "Billable Revenue", value: pnl.billableRevenueMinor },
-    { label: "Non-billable Costs", value: pnl.nonBillableCostMinor },
   ];
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Dashboard"
-        description={`${organisation.name} · ${organisation.currency} · ${period.start} to ${period.end}`}
+        description={`${organisation.name} · ${organisation.currency} · ${formatDisplayDate(period.start)} to ${formatDisplayDate(period.end)}`}
       />
       <PeriodPicker start={period.start} end={period.end} />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => (
           <Card key={card.label}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">{card.label}</CardTitle>
             </CardHeader>
             <CardContent>
-              <MoneyText minor={card.value} currency={organisation.currency} signed={card.signed} />
+              {card.value === undefined ? (
+                <span className="text-lg font-semibold tabular-nums">{card.text}</span>
+              ) : (
+                <MoneyText
+                  minor={card.value}
+                  currency={organisation.currency}
+                  signed={card.signed}
+                  className="text-lg font-semibold"
+                />
+              )}
             </CardContent>
           </Card>
         ))}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Profit Margin</CardTitle>
-          </CardHeader>
-          <CardContent className="text-lg font-semibold">
-            {pnl.marginPercent == null ? "n/a" : formatPercent(pnl.marginPercent)}
-          </CardContent>
-        </Card>
       </div>
       <DashboardCharts
         currency={organisation.currency}

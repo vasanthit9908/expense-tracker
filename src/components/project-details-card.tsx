@@ -7,6 +7,7 @@ import { ConfirmDelete } from "@/components/confirm-delete";
 import { ProjectForm } from "@/components/forms/project-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatDisplayDate } from "@/lib/dates";
 
 type BranchOption = { id: number; name: string; organisationId: number };
 
@@ -75,11 +76,11 @@ export function ProjectDetailsCard({
         <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-3">
           <div>
             <dt className="text-muted-foreground">Start date</dt>
-            <dd className="mt-0.5 font-medium">{project.startDate}</dd>
+            <dd className="mt-0.5 font-medium">{formatDisplayDate(project.startDate)}</dd>
           </div>
           <div>
             <dt className="text-muted-foreground">End date</dt>
-            <dd className="mt-0.5 font-medium">{project.endDate ?? "Open"}</dd>
+            <dd className="mt-0.5 font-medium">{project.endDate ? formatDisplayDate(project.endDate) : "Open"}</dd>
           </div>
           <div>
             <dt className="text-muted-foreground">Active team</dt>

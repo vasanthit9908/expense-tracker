@@ -38,13 +38,13 @@ export function AppSidebar({
   return (
     <aside className="flex w-full flex-col border-b bg-sidebar text-sidebar-foreground md:h-screen md:w-60 md:border-r md:border-b-0">
       <div className="px-3 py-4">
-        <Link href="/" className="block rounded-lg bg-black p-2">
+        <Link href="/" className="block rounded-lg p-2">
           <Image
             src="/eficenspnglogo.png"
             alt="eficens"
-            width={360}
-            height={120}
-            className="h-10 w-auto object-contain"
+            width={300}
+            height={100}
+            className="h-8 w-auto object-contain"
             priority
           />
         </Link>

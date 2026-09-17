@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getSelectedOrganisationId, periodFromSearchParams } from "@/lib/context";
 import { formatPercent } from "@/lib/currency";
+import { formatDisplayDate } from "@/lib/dates";
 import { getOrganisation } from "@/services/organisation-service";
 import { getProjectPnlReport } from "@/services/pnl-service";
 
@@ -34,7 +35,7 @@ export default async function ProjectReportPage({
         <Badge>{report.billable ? "Billable" : "Non-billable"}</Badge>
         <Badge variant="secondary">{report.branchName}</Badge>
         <Badge variant="secondary">
-          {report.startDate} → {report.endDate ?? "open"}
+          {formatDisplayDate(report.startDate)} → {report.endDate ? formatDisplayDate(report.endDate) : "open"}
         </Badge>
       </div>
       <div className="grid gap-4 sm:grid-cols-3">

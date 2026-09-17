@@ -14,10 +14,14 @@ export function EmployeeForm({
   organisations,
   defaultOrganisationId,
   employee,
+  onSaved,
+  onCancel,
 }: {
   organisations: { id: number; name: string }[];
   defaultOrganisationId: number | null;
   employee?: { id: number; organisationId: number; name: string; ctc: number };
+  onSaved?: () => void;
+  onCancel?: () => void;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -42,7 +46,11 @@ export function EmployeeForm({
       return;
     }
     toast.success(employee ? "Employee updated" : "Employee created");
-    router.push(employee ? `/employees/${employee.id}` : "/employees");
+    if (onSaved) {
+      onSaved();
+    } else {
+      router.push(employee ? `/employees/${employee.id}` : "/employees");
+    }
     router.refresh();
   }
 
@@ -74,9 +82,16 @@ export function EmployeeForm({
           />
         </Field>
       </FormGrid>
-      <Button type="submit" disabled={pending}>
-        {pending ? "Saving..." : "Save"}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" disabled={pending}>
+          {pending ? "Saving..." : "Save"}
+        </Button>
+        {onCancel ? (
+          <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
+            Cancel
+          </Button>
+        ) : null}
+      </div>
     </form>
   );
 }

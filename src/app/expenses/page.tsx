@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getSelectedOrganisationId } from "@/lib/context";
+import { formatDisplayDate } from "@/lib/dates";
 import { expenseScope, listExpenseAllocations, listExpenses } from "@/services/expense-service";
 import { getOrganisation } from "@/services/organisation-service";
 import { cn } from "@/lib/utils";
@@ -71,7 +72,7 @@ export default async function ExpensesPage({
                 <TableCell>
                   <MoneyText minor={expense.amount} currency={baseCurrency} />
                 </TableCell>
-                <TableCell>{expense.expenseDate}</TableCell>
+                <TableCell>{formatDisplayDate(expense.expenseDate)}</TableCell>
                 <TableCell className="text-right">
                   <Link href={`/expenses/${expense.id}`} className={cn(buttonVariants({ variant: "outline" }))}>
                     Edit

@@ -37,6 +37,11 @@ export function toIsoDate(date: Date): IsoDate {
   return format(date, "yyyy-MM-dd");
 }
 
+export function formatDisplayDate(isoDate: IsoDate): string {
+  const date = parseIsoDate(isoDate);
+  return format(date, "dd-MM-yyyy");
+}
+
 export function parseIsoDate(value: string): Date {
   const date = parseISO(value);
   if (!isValid(date) || toIsoDate(date) !== value) {

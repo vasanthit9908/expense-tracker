@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getSelectedOrganisationId } from "@/lib/context";
+import { formatDisplayDate } from "@/lib/dates";
 import { listBranches } from "@/services/branch-service";
 import { listInvoices } from "@/services/invoice-service";
 import { getOrganisation } from "@/services/organisation-service";
@@ -73,7 +74,7 @@ export default async function InvoicesPage({
             {invoices.map((invoice) => (
               <TableRow key={invoice.id}>
                 <TableCell>{invoice.invoiceNumber}</TableCell>
-                <TableCell>{invoice.invoiceDate}</TableCell>
+                <TableCell>{formatDisplayDate(invoice.invoiceDate)}</TableCell>
                 <TableCell>
                   <Badge variant={invoice.status === "CANCELLED" ? "destructive" : "secondary"}>
                     {invoice.status}

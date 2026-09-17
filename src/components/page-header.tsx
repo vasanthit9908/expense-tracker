@@ -8,11 +8,13 @@ export function PageHeader({
   description,
   actionHref,
   actionLabel,
+  action,
 }: {
   title: string;
   description?: string;
   actionHref?: string;
   actionLabel?: string;
+  action?: ReactNode;
 }) {
   return (
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -25,6 +27,7 @@ export function PageHeader({
           {actionLabel}
         </Link>
       ) : null}
+      {action}
     </div>
   );
 }

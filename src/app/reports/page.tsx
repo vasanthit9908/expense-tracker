@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getSelectedOrganisationId, periodFromSearchParams } from "@/lib/context";
 import { formatPercent } from "@/lib/currency";
+import { formatDisplayDate } from "@/lib/dates";
 import { getOrganisation } from "@/services/organisation-service";
 import { getOrganisationPnl } from "@/services/pnl-service";
 
@@ -29,7 +30,7 @@ export default async function ReportsPage({
     <div className="space-y-8">
       <PageHeader
         title="Organisation P&L"
-        description={`${pnl.organisationName} · ${currency} · ${period.start} to ${period.end}`}
+        description={`${pnl.organisationName} · ${currency} · ${formatDisplayDate(period.start)} to ${formatDisplayDate(period.end)}`}
       />
       <PeriodPicker start={period.start} end={period.end} />
       <p className="text-sm text-muted-foreground">
