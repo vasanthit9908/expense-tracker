@@ -5,6 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { listOrganisations } from "@/services/organisation-service";
 import { cn } from "@/lib/utils";
+import { OrganisationEditDialog } from "@/components/organisations/organisation-edit-dialog";
 
 export default async function OrganisationsPage({
   searchParams,
@@ -15,6 +16,7 @@ export default async function OrganisationsPage({
   const organisations = (await listOrganisations()).filter((org) =>
     q ? org.name.toLowerCase().includes(q.toLowerCase()) : true,
   );
+
   return (
     <div>
       <PageHeader
@@ -24,6 +26,7 @@ export default async function OrganisationsPage({
         actionLabel="New organisation"
       />
       <SearchBox placeholder="Search organisations" />
+
       {organisations.length === 0 ? (
         <EmptyState title="No organisations yet" hint="Create one to start tracking P&L." />
       ) : (
@@ -41,9 +44,7 @@ export default async function OrganisationsPage({
                 <TableCell>{org.name}</TableCell>
                 <TableCell>{org.currency}</TableCell>
                 <TableCell className="text-right">
-                  <Link href={`/organisations/${org.id}`} className={cn(buttonVariants({ variant: "outline" }))}>
-                    Edit
-                  </Link>
+                  <OrganisationEditDialog organisation={org} />
                 </TableCell>
               </TableRow>
             ))}
